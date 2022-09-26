@@ -1,0 +1,5 @@
+packages: ./*.cabal
+
+allow-newer: dear-imgui:*
+
+package lab5-gfx1

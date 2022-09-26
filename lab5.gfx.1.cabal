@@ -1,0 +1,22 @@
+cabal-version:      2.4
+name:               lab5-gfx1
+version:            0.1.0.0
+
+executable lab5-gfx1
+    main-is:          Main.hs
+    other-modules: MAlonzo.Code.Main
+    hs-source-dirs:   src
+    default-language: Haskell2010
+    build-depends:
+        base ^>=4.17.0.0,
+        sdl2 ^>=2.5.0.0,
+        dear-imgui ^>=2.1.1,
+        text ==2.0.1,
+        array,
+        deepseq,
+        stm,
+        StateVar,
+        bytestring,
+        primitive,
+        vector,
+        unliftio-core,

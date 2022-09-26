@@ -1,0 +1,8 @@
+name: lab5.gfx.1
+include: src
+depend:
+    ffi-hs-base
+    ffi-hs-sdl2
+    ffi-hs-dear-imgui
+    ffi-hs-StateVar
+    ffi-hs-text
