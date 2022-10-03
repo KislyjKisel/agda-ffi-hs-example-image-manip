@@ -1,28 +1,28 @@
-{-# OPTIONS --without-K #-}
+{-# OPTIONS --without-K --warn=noUserWarning #-}
 
 module Main where
 
-open import Ffi.Hs.-base.Class as Class using ()
-open import Ffi.Hs.Data.Maybe as Maybe using (Maybe; Just; Nothing)
-open import Agda.Primitive             using (lzero)
-open import Ffi.Hs.-base.Level         using (liftℓ; unliftℓ)
-open import Ffi.Hs.-base.Unit          using (⊤; ⊤′)
+open import Ffi.Hs.Prelude
+open import Ffi.Hs.Control.Monad.IO.Class using (liftIO)
 open import Ffi.Hs.Control.Applicative using (when; unless)
-open import Ffi.Hs.Control.Monad       using (_>>=_; _>>_; _=<<_; return)
-open import Ffi.Hs.Data.Eq             using (_==_)
 open import Ffi.Hs.Data.Foldable       using (any; mapM-)
-open import Ffi.Hs.Data.Function       using (_∘_; _$_)
-open import Ffi.Hs.Data.Functor        using (_<$>_)
-open import Ffi.Hs.Data.List as List   using (map)
-open import Ffi.Hs.System.IO as IO     using (IO)
-open import Ffi.Hs.Data.Text using (Text)
+open import Ffi.Hs.Data.Text as Text using (Text)
 open import Agda.Builtin.Int as ℤ using ()
-open import Ffi.Hs.GHC.Num as Num using ()
-open import Ffi.Hs.GHC.Real as Real using ()
-open import Ffi.Hs.Data.Int as Int using ()
-open import Lab.Util using (if_then_else_)
-open import Ffi.Hs.-base.Float using (Float; Double)
+open import Agda.Primitive using (lzero)
+open import Ffi.Hs.Foreign.C.Types as FC using (CInt)
+open import Ffi.Hs.Foreign.ForeignPtr using (ForeignPtr)
+open import Relation.Binary.PropositionalEquality using (subst)
+open import Agda.Builtin.Nat using (Nat)
+open import Ffi.Hs.Data.Word as Word using ()
+open import Ffi.Hs.Control.Concurrent using (threadDelay)
 
+import Ffi.Hs.Data.ByteString as BS
+import Ffi.Hs.Data.ByteString.Internal as BS
+
+import Ffi.Hs.Data.Vector.Storable as Vector
+
+import Ffi.Hs.SDL.Hint           as SDL
+import Ffi.Hs.SDL.Vect           as SDL
 import Ffi.Hs.SDL.Init           as SDL
 import Ffi.Hs.SDL.Video          as SDL
 import Ffi.Hs.SDL.Video.Renderer as SDL
@@ -35,107 +35,188 @@ import Ffi.Hs.DearImGui.SDL        as ImGui
 import Ffi.Hs.DearImGui.SDL.OpenGL as ImGui
 import Ffi.Hs.DearImGui.OpenGL3    as ImGui
 
-import Ffi.Hs.Data.StateVar as SV
-open import Ffi.Hs.Data.IORef as IORef using (IORef; newIORef)
+open import Ffi.Hs.Control.Monad.Trans.State
 
-{-# FOREIGN GHC import MAlonzo.Code.QZ45Zbase.Dictionaries #-}
+import Ffi.Hs.Codec.Picture       as JP
+import Ffi.Hs.Codec.Picture.Types as JP
+
+open import Ffi.Hs.Data.StateVar as SV using (_$=_)
+open import Ffi.Hs.Data.IORef as IORef using (IORef; newIORef; readIORef)
+
+open import Ffi.Hs.Debug.Trace using (trace)
 
 instance
-    _ = IO.Functor[IO]
-    _ = IO.Monad[IO]
-    _ = IO.MonadIO[IO]
-    _ = IO.Applicative[IO]
-
     _ = SDL.Eq[EventPayload]
-    _ = List.Foldable[List]
+    _ = SDL.HasSetter[Hint[V],V]
+    _ = SDL.Functor[V2]
 
     _ = SV.HasGetter[IORef[A],A]
     _ = SV.HasSetter[IORef[A],A]
+    _ = SV.HasSetter[StateVar[A],A]
 
-    _ = Int.Num[Int]
+    _ = Functor[StateT[S,M]]
+    _ = Applicative[StateT[S,M]]
+    _ = Monad[StateT[S,M]]
+    _ = MonadIO[StateT[S,M]]
 
-    _ = Maybe.Foldable[Maybe]
+    _ = FC.Enum[CInt]
+    _ = FC.Num[CInt]
+    _ = Word.Num[Word8]
 
-    postulate
-        Real[Float] : Class.Real Float
-        Fractional[Float] : Class.Fractional Float
-        Real[Double] : Class.Real Double
-        Fractional[Double] : Class.Fractional Double 
+    _ = JP.Pixel[PixelRGBA8]
+    _ = JP.Pixel[A]⇒Storable[PixelBaseComponent[A]]
 
-{-# COMPILE GHC Real[Float] = AgdaReal #-}
-{-# COMPILE GHC Fractional[Float] = AgdaFractional #-}
-{-# COMPILE GHC Real[Double] = AgdaReal #-}
-{-# COMPILE GHC Fractional[Double] = AgdaFractional #-}
+fromℕ : ∀{A : Set} → ⦃ Num A ⦄ → Nat → A
+fromℕ = fromInteger ∘ ℤ.pos
 
-record Env : Set where
+Image : Set
+Image = JP.Image JP.PixelRGBA8
+
+record ImageBox : Set
+record Env : Set
+
+record Env where
+    constructor mkEnv
     field
-        filePath : IORef Text
         window   : SDL.Window
-        texture  : Maybe SDL.Texture
+        renderer : SDL.Renderer
+        filePath : IORef Text
         scale    : IORef Float
+        srcIB    : ImageBox
+        dstIB    : ImageBox
+
+        info : String
+
+record ImageBox where
+    field
+        content : Maybe (Tuple2 Image SDL.Texture)
+        vpPos : SDL.V2 CInt
+
+    width : Int
+    width = maybe (fromIntegral $ ℤ.pos 0) (JP.Image.imageWidth ∘ fst) content
+
+    height : Int
+    height = maybe (fromIntegral $ ℤ.pos 0) (JP.Image.imageHeight ∘ fst) content
+
+    size : SDL.V2 Int
+    size = SDL.mkV2 width height
+
+    vpRect : SDL.Rectangle CInt
+    vpRect = SDL.mkRectangle (SDL.P vpPos) (toEnum <$> size)
+
+    unload : IO {lzero} ⊤′
+    unload = maybe (pure _) (λ (mkTuple2 _ t) → SDL.destroyTexture t) content
+
+    load : Env → Image → IO ImageBox
+    load env img = let module env = Env env in do
+        unload
+        let size = SDL.mkV2 (JP.Image.imageWidth img) (JP.Image.imageHeight img)
+        let length = SDL.V2.x size * SDL.V2.y size * (fromℕ 4)
+        texture ← unliftℓ <$> SDL.createTexture env.renderer SDL.RGBA8888 SDL.TextureAccessStatic (toEnum <$> size)
+        let fptr = subst ForeignPtr JP.PixelBaseComponent[PixelRGBA8] $ fst $ Vector.unsafeToForeignPtr0 $ JP.Image.imageData img
+        SDL.updateTexture texture Nothing (BS.fromForeignPtr0 fptr length) (toEnum length)
+        return $ record { content = Just $ mkTuple2 img texture ; vpPos = vpPos }
+
+    loadFile : Env → String → IO (Either String ImageBox)
+    loadFile env path = do
+        eimg ← JP.readImage path
+        either (pure ∘ Left) (λ img → Right <$> load env (JP.convertRGBA8 img)) eimg
+
+    render : Env → IO {lzero} ⊤′
+    render env = let module env = Env env in do
+        maybe (return _) (λ (mkTuple2 _ t) → SDL.copy env.renderer t Nothing (Just vpRect)) content
+
+
+disposeEnv : Env → IO ⊤
+disposeEnv env = let module env = Env env in do
+    ImageBox.unload env.dstIB
+    ImageBox.unload env.srcIB
+    SDL.destroyRenderer env.renderer
+    pure _
+
 
 {-# NON_TERMINATING #-}
-loop : Env → IO Env
-loop env = unlessQuit do
+loop : StateT Env IO ⊤′
+loop = unlessQuit do
+    env2 ← get
+    let module env2 = Env env2
+
+    -- # ImGui frame start
     ImGui.openGL3NewFrame
     ImGui.sdl2NewFrame
     ImGui.newFrame
 
-    ImGui.begin "Stats"
-    ImGui.end
+    -- # SDL Renderer
+    SDL.rendererDrawColor env2.renderer $= SDL.mkV4 (fromℕ 0) (fromℕ 0) (fromℕ 0) (fromℕ 255)
+    SDL.clear env2.renderer
+    SDL.rendererDrawColor env2.renderer $= SDL.mkV4 (fromℕ 55) (fromℕ 200) (fromℕ 255) (fromℕ 255)
+    SDL.drawLine env2.renderer (SDL.P (SDL.mkV2 (fromℕ 100) (fromℕ 100))) (SDL.P (SDL.mkV2 (fromℕ 300) (fromℕ 400)))
+    liftIO $ ImageBox.render env2.srcIB env2
+    liftIO $ ImageBox.render env2.dstIB env2
+    SDL.present env2.renderer
 
-    ImGui.begin "Options"
-    ImGui.dragFloat "Scale" scale (Real.realToFrac 1.0) (Real.realToFrac 0.1) (Real.realToFrac 4.0)
-    ImGui.end
-
+    -- # ImGui u
     ImGui.begin "File"
-    ImGui.inputText "Path" filePath (Num.fromInteger $ ℤ.pos 255)
-    ImGui.button "Load" >>= λ (liftℓ btnClicked) → when btnClicked loadImageFile
+    ImGui.inputText "Path" env2.filePath (fromℕ 255)
+    ImGui.button "Load" >>= λ (liftℓ btnClicked) → when btnClicked $ do
+        env ← get
+        path ← liftIO $ readIORef (Env.filePath env)
+        (Right srcIB') ← liftIO $ ImageBox.loadFile (Env.srcIB env) env (Text.unpack path)
+            where (Left err) → do
+                put (record env { info = Text.unpack "Image reading error" ++ err })
+                ImGui.openPopup "InfoPopup"
+        put (record env { srcIB = srcIB' })
+        pure _
+
+    env3 ← get
+    let module env3 = Env env3
+
+    ImGui.beginPopupModal "InfoPopup" >>= λ (liftℓ flag) → when flag $ do
+        ImGui.text $ Text.pack env3.info
+        ImGui.button "Ok" >>= λ (liftℓ okClicked) → when okClicked ImGui.closeCurrentPopup
+        ImGui.endPopup
+
     ImGui.button "Save"
     ImGui.end
 
+    -- # End frame
     ImGui.render
     ImGui.openGL3RenderDrawData =<< unliftℓ <$> ImGui.getDrawData
-    SDL.glSwapWindow window
-    loop env
+    SDL.glSwapWindow env3.window
+
+    liftIO $ threadDelay (fromℕ 30)
+    loop
 
     where
-    open Env env
-
-    unlessQuit : IO Env → IO Env
+    unlessQuit : StateT Env IO ⊤′ → StateT Env IO ⊤′
     unlessQuit act = do
-        events ← unliftℓ <$> ImGui.pollEventsWithImGui
-        let quit = any ⦃ List.Foldable[List] ⦄ ((SDL.QuitEvent ==_) ∘ SDL.Event.eventPayload) events
-        unless quit (act >> return _)
-        return env
-
-    loadImageFile : IO ⊤′
-    loadImageFile = do
-        mapM- SDL.destroyTexture texture
+        events ← liftIO $ unliftℓ <$> ImGui.pollEventsWithImGui
+        let quit = any ⦃ inst:Foldable[List] ⦄ ((SDL.QuitEvent ==_) ∘ SDL.Event.eventPayload) events
+        unless quit act
 
 main : IO ⊤
 main = do
     SDL.initializeAll
+    SDL.HintRenderDriver $= SDL.OpenGL
     window ← unliftℓ <$> SDL.createWindow "Agda SDL2 example" (record SDL.defaultWindow
         { windowGraphicsContext = SDL.OpenGLContext SDL.defaultOpenGL
+        ; windowResizable       = False
+        ; windowInitialSize     = SDL.mkV2 (fromℕ 900) (fromℕ 500)
         })
-    glContext ← unliftℓ <$> SDL.glCreateContext window
+    glContext    ← unliftℓ <$> SDL.glCreateContext window
     imguiContext ← unliftℓ <$> ImGui.createContext
-    imguiSdl ← unliftℓ <$> ImGui.sdl2InitForOpenGL window glContext
-    imguiGl ← unliftℓ <$> ImGui.openGL3Init
+    imguiSdl     ← unliftℓ <$> ImGui.sdl2InitForOpenGL window glContext
+    imguiGl      ← unliftℓ <$> ImGui.openGL3Init
 
-    filePath ← newIORef ""
-    scale ← newIORef (Real.realToFrac 1.0)
-    env ← loop record
-        { window = window
-        ; filePath = filePath
-        ; texture = Nothing
-        ; scale = scale
-        }
-    
-    let module env = Env env
 
-    mapM- SDL.destroyTexture env.texture
+    (mkEnv window
+        <$> (unliftℓ <$> SDL.createRenderer window (toEnum $ fromInteger $ ℤ.negsuc 0) SDL.defaultRenderer)
+        <*> newIORef ""
+        <*> newIORef (realToFrac ⦃ inst:Real[Double] ⦄ ⦃ inst:Fractional[Float] ⦄ 1.0)
+        <*> pure (record { content = Nothing ; vpPos = SDL.mkV2 (toEnum $ fromℕ 50) (fromℕ 50) })
+        <*> pure (record { content = Nothing ; vpPos = SDL.mkV2 (toEnum $ fromℕ 450) (fromℕ 50) })
+        <*> {- info -} (pure $ Text.unpack "")
+        ) >>= execStateT loop >>= disposeEnv
 
     SDL.destroyWindow window
     ImGui.openGL3Shutdown
@@ -144,3 +225,4 @@ main = do
     SDL.glDeleteContext glContext
     SDL.quit
     return _
+ 

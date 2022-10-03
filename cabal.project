@@ -1,5 +1,6 @@
 packages: ./*.cabal
 
 allow-newer: dear-imgui:*
+allow-older: JuicyPixels:vector
 
 package lab5-gfx1
