@@ -1,8 +1,7 @@
-{-# OPTIONS --without-K --warn=noUserWarning #-}
-
 module Main where
 
 open import Ffi.Hs.Prelude
+open import Lab.Util
 open import Ffi.Hs.Control.Monad.IO.Class using (liftIO)
 open import Ffi.Hs.Control.Applicative using (when; unless)
 open import Ffi.Hs.Data.Foldable       using (any; mapM-)
@@ -45,6 +44,8 @@ open import Ffi.Hs.Data.IORef as IORef using (IORef; newIORef; readIORef)
 
 open import Ffi.Hs.Debug.Trace using (trace)
 
+import Lab.NearestNeighbor as Alg1
+
 instance
     _ = SDL.Eq[EventPayload]
     _ = SDL.HasSetter[Hint[V],V]
@@ -63,14 +64,8 @@ instance
     _ = FC.Num[CInt]
     _ = Word.Num[Word8]
 
-    _ = JP.Pixel[PixelRGBA8]
-    _ = JP.Pixel[A]⇒Storable[PixelBaseComponent[A]]
-
-fromℕ : ∀{A : Set} → ⦃ Num A ⦄ → Nat → A
-fromℕ = fromInteger ∘ ℤ.pos
-
-Image : Set
-Image = JP.Image JP.PixelRGBA8
+data Alg : Set where
+    NearestNeighbor : Alg
 
 record ImageBox : Set
 record Env : Set
@@ -110,12 +105,22 @@ record ImageBox where
     load : Env → Image → IO ImageBox
     load env img = let module env = Env env in do
         unload
+        let imgData = JP.Image.imageData img
         let size = SDL.mkV2 (JP.Image.imageWidth img) (JP.Image.imageHeight img)
-        let length = SDL.V2.x size * SDL.V2.y size * (fromℕ 4)
-        texture ← unliftℓ <$> SDL.createTexture env.renderer SDL.RGBA8888 SDL.TextureAccessStatic (toEnum <$> size)
-        let fptr = subst ForeignPtr JP.PixelBaseComponent[PixelRGBA8] $ fst $ Vector.unsafeToForeignPtr0 $ JP.Image.imageData img
-        SDL.updateTexture texture Nothing (BS.fromForeignPtr0 fptr length) (toEnum length)
-        return $ record { content = Just $ mkTuple2 img texture ; vpPos = vpPos }
+        let imgDataLen = Vector.length imgData * pixelComponentSize
+        texture ← unliftℓ <$> SDL.createTexture env.renderer SDL.ABGR8888 SDL.TextureAccessStatic (toEnum <$> size)
+        
+        let imgDataPtr = subst ForeignPtr JP.PixelBaseComponent[PixelRGBA8] $ fst $
+                Vector.unsafeToForeignPtr0 imgData
+
+        SDL.updateTexture texture Nothing
+            (BS.fromForeignPtr0 imgDataPtr imgDataLen)
+            (toEnum $ pixelSize * JP.Image.imageHeight img)
+        
+        return $ record
+            { content = Just $ mkTuple2 img texture
+            ; vpPos   = vpPos
+            }
 
     loadFile : Env → String → IO (Either String ImageBox)
     loadFile env path = do
@@ -167,6 +172,13 @@ loop = unlessQuit do
                 ImGui.openPopup "InfoPopup"
         put (record env { srcIB = srcIB' })
         pure _
+
+    unliftℓ <$> ImGui.beginCombo "Algorithm" "Nearest Neighbor" >>= (flip when $ do
+        unliftℓ <$> ImGui.selectable "Nearest Neighbor" >>= (flip when $ do
+
+            )
+        ImGui.endCombo
+        )
 
     env3 ← get
     let module env3 = Env env3
