@@ -15,6 +15,8 @@ open import Agda.Builtin.Nat using (Nat)
 open import Ffi.Hs.Data.Word as Word using ()
 open import Ffi.Hs.Control.Concurrent using (threadDelay)
 
+open import Lab.ImageBox using (ImageBox; withImageBoxRef)
+
 import Ffi.Hs.Data.ByteString as BS
 import Ffi.Hs.Data.ByteString.Internal as BS
 
@@ -34,17 +36,17 @@ import Ffi.Hs.DearImGui.SDL        as ImGui
 import Ffi.Hs.DearImGui.SDL.OpenGL as ImGui
 import Ffi.Hs.DearImGui.OpenGL3    as ImGui
 
-open import Ffi.Hs.Control.Monad.Trans.State
-
 import Ffi.Hs.Codec.Picture       as JP
 import Ffi.Hs.Codec.Picture.Types as JP
 
-open import Ffi.Hs.Data.StateVar as SV using (_$=_)
-open import Ffi.Hs.Data.IORef as IORef using (IORef; newIORef; readIORef)
+open import Ffi.Hs.Data.StateVar as SV using (_$=_; get)
+open import Ffi.Hs.Data.IORef as IORef using (IORef; newIORef)
 
 open import Ffi.Hs.Debug.Trace using (trace)
 
-import Lab.NearestNeighbor as Alg1
+import Lab.NearestNeighbor
+import Lab.Bilinear
+import Lab.CrucianCarp
 
 instance
     _ = SDL.Eq[EventPayload]
@@ -55,96 +57,57 @@ instance
     _ = SV.HasSetter[IORef[A],A]
     _ = SV.HasSetter[StateVar[A],A]
 
-    _ = Functor[StateT[S,M]]
-    _ = Applicative[StateT[S,M]]
-    _ = Monad[StateT[S,M]]
-    _ = MonadIO[StateT[S,M]]
-
     _ = FC.Enum[CInt]
     _ = FC.Num[CInt]
     _ = Word.Num[Word8]
 
 data Alg : Set where
     NearestNeighbor : Alg
+    CrucianCarp     : Alg
+    Bilinear        : Alg
 
-record ImageBox : Set
-record Env : Set
+-- _alg==_ : Alg → Alg → Bool
+-- NearestNeighbor alg== NearestNeighbor = True
+-- NearestNeighbor alg== CrucianCarp     = False
+-- NearestNeighbor alg== Bilinear        = False
+-- CrucianCarp     alg== NearestNeighbor = False
+-- CrucianCarp     alg== CrucianCarp     = True
+-- CrucianCarp     alg== Bilinear        = False
+-- Bilinear        alg== NearestNeighbor = False
+-- Bilinear        alg== CrucianCarp     = False
+-- Bilinear        alg== Bilinear        = True
 
-record Env where
-    constructor mkEnv
+showAlg : Alg → Text
+showAlg NearestNeighbor = "Nearest Neighbor"
+showAlg CrucianCarp     = "Crucian Carp"
+showAlg Bilinear        = "Bilinear"
+
+alg : Alg → SDL.V2 Float → Image → IO Image
+alg NearestNeighbor s i = pure $ Lab.NearestNeighbor.scale s i
+alg CrucianCarp     s i = Lab.CrucianCarp.scale s i
+alg Bilinear        s i = pure $ Lab.Bilinear.scale s i
+
+record Env : Set where
     field
         window   : SDL.Window
         renderer : SDL.Renderer
         filePath : IORef Text
-        scale    : IORef Float
-        srcIB    : ImageBox
-        dstIB    : ImageBox
+        scaleX   : IORef Float
+        scaleY   : IORef Float
+        srcIB    : IORef ImageBox
+        dstIB    : IORef ImageBox
+        info     : IORef String
+        curAlg   : IORef Alg
 
-        info : String
-
-record ImageBox where
-    field
-        content : Maybe (Tuple2 Image SDL.Texture)
-        vpPos : SDL.V2 CInt
-
-    width : Int
-    width = maybe (fromIntegral $ ℤ.pos 0) (JP.Image.imageWidth ∘ fst) content
-
-    height : Int
-    height = maybe (fromIntegral $ ℤ.pos 0) (JP.Image.imageHeight ∘ fst) content
-
-    size : SDL.V2 Int
-    size = SDL.mkV2 width height
-
-    vpRect : SDL.Rectangle CInt
-    vpRect = SDL.mkRectangle (SDL.P vpPos) (toEnum <$> size)
-
-    unload : IO {lzero} ⊤′
-    unload = maybe (pure _) (λ (mkTuple2 _ t) → SDL.destroyTexture t) content
-
-    load : Env → Image → IO ImageBox
-    load env img = let module env = Env env in do
-        unload
-        let imgData = JP.Image.imageData img
-        let size = SDL.mkV2 (JP.Image.imageWidth img) (JP.Image.imageHeight img)
-        let imgDataLen = Vector.length imgData * pixelComponentSize
-        texture ← unliftℓ <$> SDL.createTexture env.renderer SDL.ABGR8888 SDL.TextureAccessStatic (toEnum <$> size)
-        
-        let imgDataPtr = subst ForeignPtr JP.PixelBaseComponent[PixelRGBA8] $ fst $
-                Vector.unsafeToForeignPtr0 imgData
-
-        SDL.updateTexture texture Nothing
-            (BS.fromForeignPtr0 imgDataPtr imgDataLen)
-            (toEnum $ pixelSize * JP.Image.imageHeight img)
-        
-        return $ record
-            { content = Just $ mkTuple2 img texture
-            ; vpPos   = vpPos
-            }
-
-    loadFile : Env → String → IO (Either String ImageBox)
-    loadFile env path = do
-        eimg ← JP.readImage path
-        either (pure ∘ Left) (λ img → Right <$> load env (JP.convertRGBA8 img)) eimg
-
-    render : Env → IO {lzero} ⊤′
-    render env = let module env = Env env in do
-        maybe (return _) (λ (mkTuple2 _ t) → SDL.copy env.renderer t Nothing (Just vpRect)) content
-
-
-disposeEnv : Env → IO ⊤
-disposeEnv env = let module env = Env env in do
-    ImageBox.unload env.dstIB
-    ImageBox.unload env.srcIB
-    SDL.destroyRenderer env.renderer
-    pure _
-
+selectableAlgGui : Env → Alg → IO ⊤′
+selectableAlgGui env a = do
+    selected ← unliftℓ <$> ImGui.selectable (showAlg a)
+    when selected do
+        Env.curAlg env $= a
 
 {-# NON_TERMINATING #-}
-loop : StateT Env IO ⊤′
-loop = unlessQuit do
-    env2 ← get
-    let module env2 = Env env2
+loop : Env → IO ⊤′
+loop env = unlessQuit do
 
     -- # ImGui frame start
     ImGui.openGL3NewFrame
@@ -152,59 +115,86 @@ loop = unlessQuit do
     ImGui.newFrame
 
     -- # SDL Renderer
-    SDL.rendererDrawColor env2.renderer $= SDL.mkV4 (fromℕ 0) (fromℕ 0) (fromℕ 0) (fromℕ 255)
-    SDL.clear env2.renderer
-    SDL.rendererDrawColor env2.renderer $= SDL.mkV4 (fromℕ 55) (fromℕ 200) (fromℕ 255) (fromℕ 255)
-    SDL.drawLine env2.renderer (SDL.P (SDL.mkV2 (fromℕ 100) (fromℕ 100))) (SDL.P (SDL.mkV2 (fromℕ 300) (fromℕ 400)))
-    liftIO $ ImageBox.render env2.srcIB env2
-    liftIO $ ImageBox.render env2.dstIB env2
-    SDL.present env2.renderer
+    SDL.rendererDrawColor env.renderer $= SDL.mkV4 (fromℕ 0) (fromℕ 0) (fromℕ 0) (fromℕ 255)
+    SDL.clear env.renderer
+    SDL.rendererDrawColor env.renderer $= SDL.mkV4 (fromℕ 55) (fromℕ 200) (fromℕ 255) (fromℕ 255)
+    SDL.drawLine env.renderer (SDL.P (SDL.mkV2 (fromℕ 100) (fromℕ 100))) (SDL.P (SDL.mkV2 (fromℕ 300) (fromℕ 400)))
+    srcIB ← get env.srcIB
+    dstIB ← get env.dstIB
+    ImageBox.render srcIB env.renderer
+    ImageBox.render dstIB env.renderer
+    SDL.present env.renderer
 
     -- # ImGui u
     ImGui.begin "File"
-    ImGui.inputText "Path" env2.filePath (fromℕ 255)
+    ImGui.inputText "Path" env.filePath (fromℕ 255)
     ImGui.button "Load" >>= λ (liftℓ btnClicked) → when btnClicked $ do
-        env ← get
-        path ← liftIO $ readIORef (Env.filePath env)
-        (Right srcIB') ← liftIO $ ImageBox.loadFile (Env.srcIB env) env (Text.unpack path)
+        path ← get env.filePath
+        srcIB ← get env.srcIB
+        (Right srcIB') ← ImageBox.loadFile srcIB env.renderer (Text.unpack path)
             where (Left err) → do
-                put (record env { info = Text.unpack "Image reading error" ++ err })
+                env.info $= Text.unpack "Image reading error" ++ err
                 ImGui.openPopup "InfoPopup"
-        put (record env { srcIB = srcIB' })
+        env.srcIB $= srcIB'
         pure _
 
-    unliftℓ <$> ImGui.beginCombo "Algorithm" "Nearest Neighbor" >>= (flip when $ do
-        unliftℓ <$> ImGui.selectable "Nearest Neighbor" >>= (flip when $ do
+    ImGui.button "Save"
 
-            )
-        ImGui.endCombo
-        )
+    ImGui.dragFloat "X coeff" env.scaleX (doubleToFloat 0.05) (doubleToFloat 0.1) (doubleToFloat 16.0)
+    ImGui.dragFloat "Y coeff" env.scaleY (doubleToFloat 0.05) (doubleToFloat 0.1) (doubleToFloat 16.0)
+    ImGui.button "Scale" >>= λ (liftℓ clicked) → when clicked $ do
+        srcIB ← get env.srcIB
+        maybe
+            (env.info $= Text.unpack "No source image" >> ImGui.openPopup "InfoPopup")
+            (λ (mkTuple2 srcImg _) → do
+                curAlg ← get env.curAlg
+                scaleX ← get env.scaleX
+                scaleY ← get env.scaleY
+                dstIB  ← get env.dstIB
+                dstImg ← alg curAlg (SDL.mkV2 scaleX scaleY) srcImg
+                dstIB' ← ImageBox.load dstIB env.renderer dstImg
+                env.dstIB $= dstIB'
+                )
+            (ImageBox.content srcIB)
 
-    env3 ← get
-    let module env3 = Env env3
+    get env.curAlg >>= λ curAlg → do
+        combo ← unliftℓ <$> ImGui.beginCombo "Algorithm" (showAlg curAlg)
+        when combo $ do
+            selectableAlgGui env NearestNeighbor
+            selectableAlgGui env CrucianCarp
+            selectableAlgGui env Bilinear
+            ImGui.endCombo
 
     ImGui.beginPopupModal "InfoPopup" >>= λ (liftℓ flag) → when flag $ do
-        ImGui.text $ Text.pack env3.info
-        ImGui.button "Ok" >>= λ (liftℓ okClicked) → when okClicked ImGui.closeCurrentPopup
+        ImGui.text ∘ Text.pack =<< get env.info
+        unliftℓ <$> ImGui.button "Ok" >>= flip when ImGui.closeCurrentPopup
         ImGui.endPopup
-
-    ImGui.button "Save"
     ImGui.end
 
     -- # End frame
     ImGui.render
     ImGui.openGL3RenderDrawData =<< unliftℓ <$> ImGui.getDrawData
-    SDL.glSwapWindow env3.window
+    SDL.glSwapWindow env.window
 
-    liftIO $ threadDelay (fromℕ 30)
-    loop
+    threadDelay (fromℕ 30)
+    loop env
 
     where
-    unlessQuit : StateT Env IO ⊤′ → StateT Env IO ⊤′
+    module env = Env env
+
+    unlessQuit : IO ⊤′ → IO ⊤′
     unlessQuit act = do
-        events ← liftIO $ unliftℓ <$> ImGui.pollEventsWithImGui
+        events ← unliftℓ <$> ImGui.pollEventsWithImGui
         let quit = any ⦃ inst:Foldable[List] ⦄ ((SDL.QuitEvent ==_) ∘ SDL.Event.eventPayload) events
         unless quit act
+
+withRenderer : SDL.Window → (SDL.Renderer → IO ⊤) → IO ⊤
+withRenderer window f = do
+    renderer ← unliftℓ <$> SDL.createRenderer
+        window (toEnum $ fromInteger $ ℤ.negsuc 0) SDL.defaultRenderer
+    f renderer
+    SDL.destroyRenderer renderer
+    pure _
 
 main : IO ⊤
 main = do
@@ -220,15 +210,26 @@ main = do
     imguiSdl     ← unliftℓ <$> ImGui.sdl2InitForOpenGL window glContext
     imguiGl      ← unliftℓ <$> ImGui.openGL3Init
 
-
-    (mkEnv window
-        <$> (unliftℓ <$> SDL.createRenderer window (toEnum $ fromInteger $ ℤ.negsuc 0) SDL.defaultRenderer)
-        <*> newIORef ""
-        <*> newIORef (realToFrac ⦃ inst:Real[Double] ⦄ ⦃ inst:Fractional[Float] ⦄ 1.0)
-        <*> pure (record { content = Nothing ; vpPos = SDL.mkV2 (toEnum $ fromℕ 50) (fromℕ 50) })
-        <*> pure (record { content = Nothing ; vpPos = SDL.mkV2 (toEnum $ fromℕ 450) (fromℕ 50) })
-        <*> {- info -} (pure $ Text.unpack "")
-        ) >>= execStateT loop >>= disposeEnv
+    withRenderer window λ renderer → do
+        withImageBoxRef (SDL.mkV2 (toEnum $ fromℕ 50) (fromℕ 50)) $ λ srcIBr → do
+            withImageBoxRef (SDL.mkV2 (toEnum $ fromℕ 450) (fromℕ 50)) $ λ dstIBr → do
+                info     ← newIORef (Text.unpack "")
+                curAlg      ← newIORef NearestNeighbor
+                filePath ← newIORef ""
+                scaleX   ← newIORef $ doubleToFloat 1.0
+                scaleY   ← newIORef $ doubleToFloat 1.0
+                loop $ record
+                    { window   = window
+                    ; renderer = renderer
+                    ; filePath = filePath
+                    ; scaleX   = scaleX
+                    ; scaleY   = scaleY
+                    ; srcIB    = srcIBr
+                    ; dstIB    = dstIBr
+                    ; info     = info
+                    ; curAlg   = curAlg
+                    }
+                pure _
 
     SDL.destroyWindow window
     ImGui.openGL3Shutdown
