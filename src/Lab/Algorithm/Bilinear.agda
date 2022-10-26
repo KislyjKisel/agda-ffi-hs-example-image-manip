@@ -1,14 +1,17 @@
-module Lab.Bilinear where
+{-# OPTIONS --without-K #-}
 
-open import Ffi.Hs.SDL.Vect as SDL using (V2; mkV2)
-open import Lab.Util
-open import Ffi.Hs.Prelude
+module Lab.Algorithm.Bilinear where
+
 open import Ffi.Hs.Linear.Vector using (_*^_; _^+^_; _^-^_)
+open import Lab.Algorithm        using (Algorithm)
+open import Lab.Prelude
 
-import Ffi.Hs.Codec.Picture as JP
+import Lab.Input.Scale2D as Inp
 
-scale : V2 Float → Image → Image
-scale (mkV2 scaleX scaleY) src = JP.generateImage generator dstW dstH
+
+scale : Tuple2 Float Float → Image → IO Image
+scale (mkTuple2 scaleX scaleY) src = pure $
+    JP.generateImage generator dstW dstH
     where
     srcW = JP.imageWidth src
     srcH = JP.imageHeight src
@@ -20,12 +23,12 @@ scale (mkV2 scaleX scaleY) src = JP.generateImage generator dstW dstH
 
     generator : Int → Int → Pixel
     generator dstX dstY = do
-        let srcX = fromIntegral dstX / (realToFrac $ dstW - fromℕ 1) * (realToFrac $ srcW - fromℕ 1)
-            srcY = fromIntegral dstY / (realToFrac $ dstH - fromℕ 1) * (realToFrac $ srcH - fromℕ 1)
+        let srcX = fromIntegral dstX / (realToFrac $ dstW - 1) * (realToFrac $ srcW - 1)
+            srcY = fromIntegral dstY / (realToFrac $ dstH - 1) * (realToFrac $ srcH - 1)
             src0X = floor srcX
             src0Y = floor srcY
-            src1X = src0X + fromℕ 1
-            src1Y = src0Y + fromℕ 1
+            src1X = src0X + 1
+            src1Y = src0Y + 1
 
             rightEdge  = src1X == srcW
             bottomEdge = src1Y == srcH
@@ -60,3 +63,10 @@ scale (mkV2 scaleX scaleY) src = JP.generateImage generator dstW dstH
                     lerp q0 q1 $ (srcY - realToFrac src0Y) / (realToFrac $ src1Y - src0Y)
 
             }
+
+bilinear : Algorithm
+bilinear = record
+    { name  = "Bilinear"
+    ; input = Inp.Scale2D
+    ; run   = scale
+    }

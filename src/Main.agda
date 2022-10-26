@@ -1,235 +1,185 @@
+{-# OPTIONS --without-K #-}
+
 module Main where
 
-open import Ffi.Hs.Prelude
-open import Lab.Util
-open import Ffi.Hs.Control.Monad.IO.Class using (liftIO)
-open import Ffi.Hs.Control.Applicative using (when; unless)
-open import Ffi.Hs.Data.Foldable       using (any; mapM-)
-open import Ffi.Hs.Data.Text as Text using (Text)
-open import Agda.Builtin.Int as ℤ using ()
-open import Agda.Primitive using (lzero)
-open import Ffi.Hs.Foreign.C.Types as FC using (CInt)
-open import Ffi.Hs.Foreign.ForeignPtr using (ForeignPtr)
+open import Data.Product                          using (_,_)
 open import Relation.Binary.PropositionalEquality using (subst)
-open import Agda.Builtin.Nat using (Nat)
-open import Ffi.Hs.Data.Word as Word using ()
-open import Ffi.Hs.Control.Concurrent using (threadDelay)
 
-open import Lab.ImageBox using (ImageBox; withImageBoxRef)
+open import Ffi.Hs.Control.Applicative        using (when; unless)
+open import Ffi.Hs.Control.Concurrent         using (threadDelay)
+open import Ffi.Hs.Control.Monad.IO.Class     using (liftIO)
+open import Ffi.Hs.Control.Monad.Trans.Except using (runExceptT)
+open import Ffi.Hs.Control.Monad.Trans.Reader using (runReaderT)
+open import Ffi.Hs.Data.Foldable              using (any; mapM-; forM-)
+open import Ffi.Hs.Foreign.C.Types            using (CInt)
+open import Ffi.Hs.Foreign.ForeignPtr         using (ForeignPtr)
+
+open import Lab.Prelude
+open import Lab.Algorithm                                using (Algorithm)
+open import Lab.Class.Level
+open import Lab.Environment                              using (Env)
+open import Lab.ImageBox                     as ImageBox using (ImageBox)
+open import Lab.Input                                    using (Input)
+open import Lab.Rendering.Mesh.Quad          as Quad     using (Quad)
+open import Lab.Rendering.Program            as Program  using (Program)
+open import Lab.Rendering.Program.Textured2D             using (textured2d)
 
 import Ffi.Hs.Data.ByteString as BS
 import Ffi.Hs.Data.ByteString.Internal as BS
 
 import Ffi.Hs.Data.Vector.Storable as Vector
 
-import Ffi.Hs.SDL.Hint           as SDL
-import Ffi.Hs.SDL.Vect           as SDL
-import Ffi.Hs.SDL.Init           as SDL
-import Ffi.Hs.SDL.Video          as SDL
-import Ffi.Hs.SDL.Video.Renderer as SDL
-import Ffi.Hs.SDL.Video.OpenGL   as SDL
-import Ffi.Hs.SDL.Event          as SDL
-import Ffi.Hs.SDL.Internal.Types as SDL
-
 import Ffi.Hs.DearImGui            as ImGui
 import Ffi.Hs.DearImGui.SDL        as ImGui
 import Ffi.Hs.DearImGui.SDL.OpenGL as ImGui
 import Ffi.Hs.DearImGui.OpenGL3    as ImGui
 
-import Ffi.Hs.Codec.Picture       as JP
-import Ffi.Hs.Codec.Picture.Types as JP
+import Ffi.Hs.Graphics.Rendering.OpenGL as GL
 
-open import Ffi.Hs.Data.StateVar as SV using (_$=_; get)
-open import Ffi.Hs.Data.IORef as IORef using (IORef; newIORef)
-
-open import Ffi.Hs.Debug.Trace using (trace)
-
-import Lab.NearestNeighbor
-import Lab.Bilinear
-import Lab.CrucianCarp
+import Lab.Algorithm.NearestNeighbor as Algorithm
+import Lab.Algorithm.Bilinear        as Algorithm
+import Lab.Algorithm.CrucianCarp     as Algorithm
 
 instance
     _ = SDL.Eq[EventPayload]
     _ = SDL.HasSetter[Hint[V],V]
     _ = SDL.Functor[V2]
 
-    _ = SV.HasGetter[IORef[A],A]
-    _ = SV.HasSetter[IORef[A],A]
-    _ = SV.HasSetter[StateVar[A],A]
+algorithms : List Algorithm
+algorithms =
+    Algorithm.nearest-neighbor ∷
+    Algorithm.bilinear         ∷
+    Algorithm.crucian-carp     ∷
+    []
 
-    _ = FC.Enum[CInt]
-    _ = FC.Num[CInt]
-    _ = Word.Num[Word8]
-
-data Alg : Set where
-    NearestNeighbor : Alg
-    CrucianCarp     : Alg
-    Bilinear        : Alg
-
--- _alg==_ : Alg → Alg → Bool
--- NearestNeighbor alg== NearestNeighbor = True
--- NearestNeighbor alg== CrucianCarp     = False
--- NearestNeighbor alg== Bilinear        = False
--- CrucianCarp     alg== NearestNeighbor = False
--- CrucianCarp     alg== CrucianCarp     = True
--- CrucianCarp     alg== Bilinear        = False
--- Bilinear        alg== NearestNeighbor = False
--- Bilinear        alg== CrucianCarp     = False
--- Bilinear        alg== Bilinear        = True
-
-showAlg : Alg → Text
-showAlg NearestNeighbor = "Nearest Neighbor"
-showAlg CrucianCarp     = "Crucian Carp"
-showAlg Bilinear        = "Bilinear"
-
-alg : Alg → SDL.V2 Float → Image → IO Image
-alg NearestNeighbor s i = pure $ Lab.NearestNeighbor.scale s i
-alg CrucianCarp     s i = Lab.CrucianCarp.scale s i
-alg Bilinear        s i = pure $ Lab.Bilinear.scale s i
-
-record Env : Set where
-    field
-        window   : SDL.Window
-        renderer : SDL.Renderer
-        filePath : IORef Text
-        scaleX   : IORef Float
-        scaleY   : IORef Float
-        srcIB    : IORef ImageBox
-        dstIB    : IORef ImageBox
-        info     : IORef String
-        curAlg   : IORef Alg
-
-selectableAlgGui : Env → Alg → IO ⊤′
+selectableAlgGui : Env → Algorithm → IO {1ℓ} ⊤′
 selectableAlgGui env a = do
-    selected ← unliftℓ <$> ImGui.selectable (showAlg a)
+    liftℓ selected ← ImGui.selectable (Algorithm.name a)
     when selected do
-        Env.curAlg env $= a
+        liftℓ inp ← liftℓ1 $ Input.new (Algorithm.input a)
+        Env.algorithm env $= a , inp
 
 {-# NON_TERMINATING #-}
-loop : Env → IO ⊤′
-loop env = unlessQuit do
-
+loop : Env → IO {sucℓ 0ℓ} ⊤′
+loop env = unlessQuit $ do
     -- # ImGui frame start
     ImGui.openGL3NewFrame
     ImGui.sdl2NewFrame
     ImGui.newFrame
 
-    -- # SDL Renderer
-    SDL.rendererDrawColor env.renderer $= SDL.mkV4 (fromℕ 0) (fromℕ 0) (fromℕ 0) (fromℕ 255)
-    SDL.clear env.renderer
-    SDL.rendererDrawColor env.renderer $= SDL.mkV4 (fromℕ 55) (fromℕ 200) (fromℕ 255) (fromℕ 255)
-    SDL.drawLine env.renderer (SDL.P (SDL.mkV2 (fromℕ 100) (fromℕ 100))) (SDL.P (SDL.mkV2 (fromℕ 300) (fromℕ 400)))
-    srcIB ← get env.srcIB
-    dstIB ← get env.dstIB
-    ImageBox.render srcIB env.renderer
-    ImageBox.render dstIB env.renderer
-    SDL.present env.renderer
-
-    -- # ImGui u
-    ImGui.begin "File"
-    ImGui.inputText "Path" env.filePath (fromℕ 255)
-    ImGui.button "Load" >>= λ (liftℓ btnClicked) → when btnClicked $ do
-        path ← get env.filePath
-        srcIB ← get env.srcIB
-        (Right srcIB') ← ImageBox.loadFile srcIB env.renderer (Text.unpack path)
-            where (Left err) → do
-                env.info $= Text.unpack "Image reading error" ++ err
+    -- # ImGui
+    ImGui.begin "File\0"
+    ImGui.inputText "Path\0" env.imageFilePathUi 255
+    ImGui.button "Load\0" >>= λ (liftℓ btnClicked) → when btnClicked $ do
+        liftℓ path ← liftℓ1 $ get env.imageFilePathUi
+        liftℓ (Right _) ← liftℓ1 $ runExceptT $ ImageBox.loadFile env.srcIB (Text.unpack path)
+            where liftℓ (Left err) → do
+                env.infoUi $= Text.unpack "Image reading error" ++ err
                 ImGui.openPopup "InfoPopup"
-        env.srcIB $= srcIB'
         pure _
 
-    ImGui.button "Save"
+    ImGui.button "Save\0" >>= λ (liftℓ btnClicked) → when btnClicked $ do
+        liftℓ path ← liftℓ1 $ get env.imageFilePathUi
+        liftℓ (Just (mkTuple2 dstImg _)) ← liftℓ1 $ readIORef $ ImageBox.content env.dstIB
+            where liftℓ Nothing → do
+                env.infoUi $= Text.unpack "Nothing to save"
+                ImGui.openPopup "InfoPopup"
+        liftℓ1 $ JP.writePng (Text.unpack path) dstImg
 
-    ImGui.dragFloat "X coeff" env.scaleX (doubleToFloat 0.05) (doubleToFloat 0.1) (doubleToFloat 16.0)
-    ImGui.dragFloat "Y coeff" env.scaleY (doubleToFloat 0.05) (doubleToFloat 0.1) (doubleToFloat 16.0)
-    ImGui.button "Scale" >>= λ (liftℓ clicked) → when clicked $ do
-        srcIB ← get env.srcIB
-        maybe
-            (env.info $= Text.unpack "No source image" >> ImGui.openPopup "InfoPopup")
-            (λ (mkTuple2 srcImg _) → do
-                curAlg ← get env.curAlg
-                scaleX ← get env.scaleX
-                scaleY ← get env.scaleY
-                dstIB  ← get env.dstIB
-                dstImg ← alg curAlg (SDL.mkV2 scaleX scaleY) srcImg
-                dstIB' ← ImageBox.load dstIB env.renderer dstImg
-                env.dstIB $= dstIB'
-                )
-            (ImageBox.content srcIB)
+    liftℓ1 $ ImGui.button "Run\0" >>= λ (liftℓ clicked) → when clicked $ do
+        Just (mkTuple2 srcImg _) ← readIORef $ ImageBox.content env.srcIB
+            where Nothing → do
+                env.infoUi $= Text.unpack "No source image"
+                ImGui.openPopup "InfoPopup"
+        dstImg ← readIORef env.algorithm >>=ℓ λ (alg , inpSt) → do
+            inpVal ← Input.load (Algorithm.input alg) inpSt
+            Algorithm.run alg inpVal srcImg
+        ImageBox.load env.dstIB dstImg
 
-    get env.curAlg >>= λ curAlg → do
-        combo ← unliftℓ <$> ImGui.beginCombo "Algorithm" (showAlg curAlg)
+    get env.algorithm >>= λ (alg , inpSt) → do
+        (liftℓ combo) ← ImGui.beginCombo "Algorithm\0" (Text.append (Algorithm.name alg) "\0")
         when combo $ do
-            selectableAlgGui env NearestNeighbor
-            selectableAlgGui env CrucianCarp
-            selectableAlgGui env Bilinear
+            forM- algorithms (selectableAlgGui env)
             ImGui.endCombo
+        liftℓ1 $ Input.ui (Algorithm.input alg) inpSt
+
+    -- num ← newIORef (fromℕ 0)
+    -- ImGui.listBox "Log\0" num [] >>= λ (liftℓ b) → when b $ do
+    --     pure _
+
+    liftℓ1 do
+        errors ← get GL.errors
+        forM- errors λ{ (GL.mkError c s) → do
+                putStrLn s
+                env.infoUi $= "GL error: " ++ s
+                ImGui.openPopup "InfoPopup"
+            }
 
     ImGui.beginPopupModal "InfoPopup" >>= λ (liftℓ flag) → when flag $ do
-        ImGui.text ∘ Text.pack =<< get env.info
-        unliftℓ <$> ImGui.button "Ok" >>= flip when ImGui.closeCurrentPopup
+        get env.infoUi >>=ℓ ImGui.text ∘ Text.pack
+        unliftℓ <$> ImGui.button "Ok\0" >>=ℓ flip when ImGui.closeCurrentPopup
         ImGui.endPopup
     ImGui.end
 
     -- # End frame
+    GL.clearColor $= GL.mkColor4 (realToFrac 0.0) (realToFrac 0.3) (realToFrac 0.5) (realToFrac 1.0)
+    liftℓ1 {bℓ = 1ℓ} $ GL.clear (GL.ColorBuffer ∷ GL.DepthBuffer ∷ [])
+
+    runReaderT (ImageBox.render env.srcIB) env
+    runReaderT (ImageBox.render env.dstIB) env
+
     ImGui.render
-    ImGui.openGL3RenderDrawData =<< unliftℓ <$> ImGui.getDrawData
+    ImGui.openGL3RenderDrawData =<<ℓ unliftℓ <$> ImGui.getDrawData
     SDL.glSwapWindow env.window
 
-    threadDelay (fromℕ 30)
+    liftℓ1 $ threadDelay 30
     loop env
 
     where
-    module env = Env env
+    module env = Env env 
 
-    unlessQuit : IO ⊤′ → IO ⊤′
-    unlessQuit act = do
-        events ← unliftℓ <$> ImGui.pollEventsWithImGui
-        let quit = any ⦃ inst:Foldable[List] ⦄ ((SDL.QuitEvent ==_) ∘ SDL.Event.eventPayload) events
-        unless quit act
-
-withRenderer : SDL.Window → (SDL.Renderer → IO ⊤) → IO ⊤
-withRenderer window f = do
-    renderer ← unliftℓ <$> SDL.createRenderer
-        window (toEnum $ fromInteger $ ℤ.negsuc 0) SDL.defaultRenderer
-    f renderer
-    SDL.destroyRenderer renderer
-    pure _
+    unlessQuit : IO {sucℓ 0ℓ} ⊤′ → IO {sucℓ 0ℓ} ⊤′
+    unlessQuit act =
+        _>>=ℓ_ {aℓ = sucℓ 0ℓ} ImGui.pollEventsWithImGui λ (liftℓ events) →
+        let quit = any ⦃ inst:Foldable[List] ⦄
+                ((SDL.QuitEvent ==_) ∘ SDL.Event.eventPayload) events
+        in
+            unless quit act
 
 main : IO ⊤
 main = do
     SDL.initializeAll
-    SDL.HintRenderDriver $= SDL.OpenGL
-    window ← unliftℓ <$> SDL.createWindow "Agda SDL2 example" (record SDL.defaultWindow
+    liftℓ window ← SDL.createWindow "Lab 5-gfx-1" (record SDL.defaultWindow
         { windowGraphicsContext = SDL.OpenGLContext SDL.defaultOpenGL
         ; windowResizable       = False
-        ; windowInitialSize     = SDL.mkV2 (fromℕ 900) (fromℕ 500)
+        ; windowInitialSize     = SDL.mkV2 (fromℕ 950) (fromℕ 800)
         })
-    glContext    ← unliftℓ <$> SDL.glCreateContext window
-    imguiContext ← unliftℓ <$> ImGui.createContext
-    imguiSdl     ← unliftℓ <$> ImGui.sdl2InitForOpenGL window glContext
-    imguiGl      ← unliftℓ <$> ImGui.openGL3Init
+    liftℓ glContext    ← SDL.glCreateContext window
+    liftℓ imguiContext ← ImGui.createContext
+    liftℓ imguiSdl     ← ImGui.sdl2InitForOpenGL window glContext
+    liftℓ imguiGl      ← ImGui.openGL3Init
 
-    withRenderer window λ renderer → do
-        withImageBoxRef (SDL.mkV2 (toEnum $ fromℕ 50) (fromℕ 50)) $ λ srcIBr → do
-            withImageBoxRef (SDL.mkV2 (toEnum $ fromℕ 450) (fromℕ 50)) $ λ dstIBr → do
-                info     ← newIORef (Text.unpack "")
-                curAlg      ← newIORef NearestNeighbor
-                filePath ← newIORef ""
-                scaleX   ← newIORef $ doubleToFloat 1.0
-                scaleY   ← newIORef $ doubleToFloat 1.0
-                loop $ record
-                    { window   = window
-                    ; renderer = renderer
-                    ; filePath = filePath
-                    ; scaleX   = scaleX
-                    ; scaleY   = scaleY
-                    ; srcIB    = srcIBr
-                    ; dstIB    = dstIBr
-                    ; info     = info
-                    ; curAlg   = curAlg
+    GL.texture GL.Texture2D $= GL.Enabled -- ? legacy
+    do
+        inputSt         ← Input.new (Algorithm.input Algorithm.nearest-neighbor)
+        imageFilePathUi ← newIORef ""
+        infoUi          ← newIORef ""
+        mesh-quad       ← Quad.new
+        prog-textured2d ← Program.new textured2d
+        srcIB           ← ImageBox.new (GL.mkVector2 (doubleToFloat -0.5) (doubleToFloat 0.0)) (GL.mkVector2 (doubleToFloat 0.421) (doubleToFloat 0.8))
+        dstIB           ← ImageBox.new (GL.mkVector2 (doubleToFloat 0.452) (doubleToFloat 0.0)) (GL.mkVector2 (doubleToFloat 0.421) (doubleToFloat 0.8))
+        unliftℓ1 $
+            newIORef (Algorithm.nearest-neighbor , inputSt) >>= λ algorithm →
+                loop record
+                    { mesh-quad       = mesh-quad
+                    ; prog-textured2d = prog-textured2d
+                    ; window          = window
+                    ; imageFilePathUi = imageFilePathUi
+                    ; algorithm       = algorithm
+                    ; srcIB           = srcIB
+                    ; dstIB           = dstIB
+                    ; infoUi          = infoUi
                     }
-                pure _
 
     SDL.destroyWindow window
     ImGui.openGL3Shutdown
@@ -238,4 +188,3 @@ main = do
     SDL.glDeleteContext glContext
     SDL.quit
     return _
- 

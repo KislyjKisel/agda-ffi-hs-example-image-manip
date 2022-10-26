@@ -9,3 +9,5 @@ depend:
     ffi-hs-text
     ffi-hs-JuicyPixels
     ffi-hs-transformers
+    ffi-hs-OpenGL
+    ffi-hs-OpenGLRaw

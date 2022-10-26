@@ -6,11 +6,22 @@ executable lab5-gfx1
     main-is:          Main.hs
     other-modules:
         MAlonzo.Code.Main
-        MAlonzo.Code.Lab.Util
+        MAlonzo.Code.Lab.Algorithm
+        MAlonzo.Code.Lab.Environment
         MAlonzo.Code.Lab.ImageBox
-        MAlonzo.Code.Lab.NearestNeighbor
-        MAlonzo.Code.Lab.Bilinear
-        MAlonzo.Code.Lab.CrucianCarp
+        MAlonzo.Code.Lab.Input
+        MAlonzo.Code.Lab.Prelude
+        MAlonzo.Code.Lab.Algorithm.Bilinear
+        MAlonzo.Code.Lab.Algorithm.CrucianCarp
+        MAlonzo.Code.Lab.Algorithm.NearestNeighbor
+        MAlonzo.Code.Lab.Class.Level
+        MAlonzo.Code.Lab.Class.Product
+        -- MAlonzo.Code.Lab.Class.Sum
+        MAlonzo.Code.Lab.Input.Scale2D
+        MAlonzo.Code.Lab.Rendering.Mesh.QQuad
+        MAlonzo.Code.Lab.Rendering.Program.Textured2D
+        MAlonzo.Code.Lab.Rendering.Program
+
     hs-source-dirs:   src
     default-language: Haskell2010
     build-depends:
@@ -18,9 +29,12 @@ executable lab5-gfx1
         sdl2 ^>=2.5.0.0,
         dear-imgui ^>=2.1.1,
         text ==2.0.1,
-        transformers ==0.5.6.2,
+        transformers ==0.6.0.4,
         JuicyPixels ==3.3.8,
         vector ==0.12.3.1,
+        OpenGL ==3.0.3.0,
+        OpenGLRaw,
+        ObjectName,
         linear,
         array,
         deepseq,
@@ -29,3 +43,4 @@ executable lab5-gfx1
         bytestring,
         primitive,
         unliftio-core,
+        binary,
