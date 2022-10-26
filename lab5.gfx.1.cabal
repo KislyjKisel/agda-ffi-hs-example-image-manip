@@ -10,6 +10,7 @@ executable lab5-gfx1
         MAlonzo.Code.Lab.Environment
         MAlonzo.Code.Lab.ImageBox
         MAlonzo.Code.Lab.Input
+        MAlonzo.Code.Lab.Params
         MAlonzo.Code.Lab.Prelude
         MAlonzo.Code.Lab.Algorithm.Bilinear
         MAlonzo.Code.Lab.Algorithm.CrucianCarp

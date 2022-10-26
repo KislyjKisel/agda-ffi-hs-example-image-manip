@@ -9,14 +9,16 @@ open import Ffi.Hs.Control.Monad.IO.Class                 using (liftIO)
 open import Ffi.Hs.Control.Monad.Trans.Class              using (lift)
 open import Ffi.Hs.Control.Monad.Trans.Except             using (ExceptT; mkExceptT)
 open import Ffi.Hs.Control.Monad.Trans.Reader             using (ReaderT; ask)
+open import Ffi.Hs.Data.Ord                               using (clamp)
 open import Ffi.Hs.Foreign.ForeignPtr                     using (ForeignPtr)
 open import Ffi.Hs.Foreign.ForeignPtr.Unsafe      as FPtr using ()
+open import Lab.Class.Level                               using (liftℓ1)
 open import Lab.Class.Product                             using (Product; extract)
+open import Lab.Params                                    using (windowWidth; windowHeight)
 open import Lab.Rendering.Mesh.Quad               as Mesh using ()
 open import Lab.Rendering.Program                 as Prog using (Program)
 open import Lab.Rendering.Program.Textured2D      as Prog using ()
 open import Relation.Binary.PropositionalEquality         using (subst)
-open import Lab.Class.Level                               using (liftℓ1)
 
 import Ffi.Hs.Control.Monad.Trans.Reader-Instanced
 import Ffi.Hs.Control.Monad.Trans.Except-Instanced
@@ -29,9 +31,18 @@ import Ffi.Hs.Graphics.Rendering.OpenGL.GL as GL
 
 record ImageBox : Set where
     field
-        content  : IORef (Maybe (Tuple2 Image GL.TextureObject))
-        position : GL.Vector2 GLfloat
-        scale    : GL.Vector2 GLfloat
+        content   : IORef (Maybe (Tuple2 Image GL.TextureObject))
+        position  : GL.Vector2 GLfloat
+        scale     : IORef (GL.Vector2 GLfloat)
+        maxScale : GL.Vector2 Double
+
+    maxScaleW : Double
+    maxScaleW with maxScale
+    ... | GL.mkVector2 w h = w
+
+    maxScaleH : Double
+    maxScaleH with maxScale
+    ... | GL.mkVector2 w h = h
 
     contentWidth : IO Int
     contentWidth = readIORef content >>= pure ∘ maybe 0 (JP.imageWidth ∘ fst)
@@ -60,6 +71,18 @@ record ImageBox : Set where
         GL.textureBinding GL.Texture2D $= Nothing
 
         writeIORef content (Just (mkTuple2 img texture))
+
+        let winW = realToFrac windowWidth
+            winH = realToFrac windowHeight
+            winNdcWu = winW / 2.0
+            winNdcHu = winH / 2.0
+            ibW = realToFrac width  / winNdcWu
+            ibH = realToFrac height / winNdcHu
+            ibWc = clamp (mkTuple2 0.0 maxScaleW) ibW
+            ibHc = clamp (mkTuple2 0.0 maxScaleH) ibH
+
+        writeIORef scale $ GL.mkVector2 (doubleToFloat ibWc) (doubleToFloat ibHc)
+
         pure _
 
     loadFile : String → ExceptT String IO ⊤′
@@ -75,10 +98,11 @@ record ImageBox : Set where
         liftℓ (Just (mkTuple2 _ texture)) ← liftIO $ liftℓ1 $ readIORef content
             where liftℓ Nothing → pure _
         env ← ask
+        liftℓ scalev ← liftIO $ liftℓ1 $ readIORef scale 
         liftIO $ Prog.bind (extract env) $
             0        VAll.∷
             position VAll.∷
-            scale    VAll.∷
+            scalev   VAll.∷
             VAll.[]
 
         GL.activeTexture $= GL.mkTextureUnit 0
@@ -86,9 +110,13 @@ record ImageBox : Set where
         liftIO $ Mesh.Quad.render (extract env)
         GL.textureBinding GL.Texture2D $= Nothing
 
-new : GL.Vector2 GLfloat → GL.Vector2 GLfloat → IO ImageBox
-new position scale = newIORef Nothing >>= λ content → pure record
-    { content  = content
-    ; position = position
-    ; scale    = scale
-    }
+new : GL.Vector2 GLfloat → GL.Vector2 Double → IO ImageBox
+new position maxScale = do
+    content ← newIORef Nothing
+    scale   ← newIORef $ GL.mkVector2 (doubleToFloat 0.0) (doubleToFloat 0.0) 
+    pure record
+        { content  = content
+        ; position = position
+        ; scale    = scale
+        ; maxScale = maxScale
+        }

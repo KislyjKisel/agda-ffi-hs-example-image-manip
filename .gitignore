@@ -2,5 +2,3 @@ _build/
 MAlonzo/
 dist-newstyle/
 imgui.ini
-*.jpg
-*.png

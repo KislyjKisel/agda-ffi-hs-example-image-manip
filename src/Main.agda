@@ -14,36 +14,31 @@ open import Ffi.Hs.Data.Foldable              using (any; mapM-; forM-)
 open import Ffi.Hs.Foreign.C.Types            using (CInt)
 open import Ffi.Hs.Foreign.ForeignPtr         using (ForeignPtr)
 
-open import Lab.Prelude
 open import Lab.Algorithm                                using (Algorithm)
 open import Lab.Class.Level
 open import Lab.Environment                              using (Env)
 open import Lab.ImageBox                     as ImageBox using (ImageBox)
 open import Lab.Input                                    using (Input)
+open import Lab.Params                                   using (windowWidth; windowHeight)
+open import Lab.Prelude
 open import Lab.Rendering.Mesh.Quad          as Quad     using (Quad)
 open import Lab.Rendering.Program            as Program  using (Program)
 open import Lab.Rendering.Program.Textured2D             using (textured2d)
 
-import Ffi.Hs.Data.ByteString as BS
-import Ffi.Hs.Data.ByteString.Internal as BS
+import Lab.Algorithm.NearestNeighbor as Algorithm
+import Lab.Algorithm.Bilinear        as Algorithm
+import Lab.Algorithm.CrucianCarp     as Algorithm
 
-import Ffi.Hs.Data.Vector.Storable as Vector
+import Ffi.Hs.Data.ByteString           as BS
+import Ffi.Hs.Data.ByteString.Internal  as BS
+import Ffi.Hs.Data.Vector.Storable      as Vector
+import Ffi.Hs.Graphics.Rendering.OpenGL as GL
 
 import Ffi.Hs.DearImGui            as ImGui
 import Ffi.Hs.DearImGui.SDL        as ImGui
 import Ffi.Hs.DearImGui.SDL.OpenGL as ImGui
 import Ffi.Hs.DearImGui.OpenGL3    as ImGui
 
-import Ffi.Hs.Graphics.Rendering.OpenGL as GL
-
-import Lab.Algorithm.NearestNeighbor as Algorithm
-import Lab.Algorithm.Bilinear        as Algorithm
-import Lab.Algorithm.CrucianCarp     as Algorithm
-
-instance
-    _ = SDL.Eq[EventPayload]
-    _ = SDL.HasSetter[Hint[V],V]
-    _ = SDL.Functor[V2]
 
 algorithms : List Algorithm
 algorithms =
@@ -54,7 +49,7 @@ algorithms =
 
 selectableAlgGui : Env → Algorithm → IO {1ℓ} ⊤′
 selectableAlgGui env a = do
-    liftℓ selected ← ImGui.selectable (Algorithm.name a)
+    liftℓ selected ← ImGui.selectable (Text.append (Algorithm.name a) "\0")
     when selected do
         liftℓ inp ← liftℓ1 $ Input.new (Algorithm.input a)
         Env.algorithm env $= a , inp
@@ -62,12 +57,10 @@ selectableAlgGui env a = do
 {-# NON_TERMINATING #-}
 loop : Env → IO {sucℓ 0ℓ} ⊤′
 loop env = unlessQuit $ do
-    -- # ImGui frame start
     ImGui.openGL3NewFrame
     ImGui.sdl2NewFrame
     ImGui.newFrame
 
-    -- # ImGui
     ImGui.begin "File\0"
     ImGui.inputText "Path\0" env.imageFilePathUi 255
     ImGui.button "Load\0" >>= λ (liftℓ btnClicked) → when btnClicked $ do
@@ -121,7 +114,6 @@ loop env = unlessQuit $ do
         ImGui.endPopup
     ImGui.end
 
-    -- # End frame
     GL.clearColor $= GL.mkColor4 (realToFrac 0.0) (realToFrac 0.3) (realToFrac 0.5) (realToFrac 1.0)
     liftℓ1 {bℓ = 1ℓ} $ GL.clear (GL.ColorBuffer ∷ GL.DepthBuffer ∷ [])
 
@@ -138,13 +130,12 @@ loop env = unlessQuit $ do
     where
     module env = Env env 
 
-    unlessQuit : IO {sucℓ 0ℓ} ⊤′ → IO {sucℓ 0ℓ} ⊤′
-    unlessQuit act =
-        _>>=ℓ_ {aℓ = sucℓ 0ℓ} ImGui.pollEventsWithImGui λ (liftℓ events) →
+    unlessQuit : IO {1ℓ} ⊤′ → IO {1ℓ} ⊤′
+    unlessQuit act = do
+        liftℓ events ← ImGui.pollEventsWithImGui
         let quit = any ⦃ inst:Foldable[List] ⦄
                 ((SDL.QuitEvent ==_) ∘ SDL.Event.eventPayload) events
-        in
-            unless quit act
+        unless quit act
 
 main : IO ⊤
 main = do
@@ -152,7 +143,7 @@ main = do
     liftℓ window ← SDL.createWindow "Lab 5-gfx-1" (record SDL.defaultWindow
         { windowGraphicsContext = SDL.OpenGLContext SDL.defaultOpenGL
         ; windowResizable       = False
-        ; windowInitialSize     = SDL.mkV2 (fromℕ 950) (fromℕ 800)
+        ; windowInitialSize     = SDL.mkV2 (fromIntegral windowWidth) (fromIntegral windowHeight)
         })
     liftℓ glContext    ← SDL.glCreateContext window
     liftℓ imguiContext ← ImGui.createContext
@@ -166,8 +157,8 @@ main = do
         infoUi          ← newIORef ""
         mesh-quad       ← Quad.new
         prog-textured2d ← Program.new textured2d
-        srcIB           ← ImageBox.new (GL.mkVector2 (doubleToFloat -0.5) (doubleToFloat 0.0)) (GL.mkVector2 (doubleToFloat 0.421) (doubleToFloat 0.8))
-        dstIB           ← ImageBox.new (GL.mkVector2 (doubleToFloat 0.452) (doubleToFloat 0.0)) (GL.mkVector2 (doubleToFloat 0.421) (doubleToFloat 0.8))
+        srcIB           ← ImageBox.new (GL.mkVector2 (doubleToFloat -0.5) (doubleToFloat 0.0)) (GL.mkVector2 0.421 0.8)
+        dstIB           ← ImageBox.new (GL.mkVector2 (doubleToFloat 0.452) (doubleToFloat 0.0)) (GL.mkVector2 0.421 0.8)
         unliftℓ1 $
             newIORef (Algorithm.nearest-neighbor , inputSt) >>= λ algorithm →
                 loop record
