@@ -31,7 +31,7 @@ open import Ffi.Hs.Data.Text public
 module Text = Ffi.Hs.Data.Text
 
 open import Ffi.Hs.Data.IORef public
-    using (IORef; newIORef; readIORef; writeIORef)
+    using (IORef; newIORef; readIORef; writeIORef; modifyIORef)
 
 open import Agda.Builtin.Int public
     using ()
@@ -72,7 +72,6 @@ open import Ffi.Hs.Graphics.Rendering.OpenGL.GL-Instanced public
 
 instance
     inst:mkHasCallStack = mkHasCallStack
-    -- inst:Pixel[Pixel] = JP.Pixel[PixelRGBA8]
     inst:Pixel[A]⇒Storable[PixelBaseComponent[A]] = JP.Pixel[A]⇒Storable[PixelBaseComponent[A]]
 
 fromℕ : ∀{A : Set} → ⦃ Num A ⦄ → ℕ → A
@@ -86,12 +85,6 @@ Image = JP.Image Pixel
 
 MImage : Set
 MImage = JP.MutableImage (PrimState {0ℓ} IO) Pixel
-
-pixelComponentSize : Int
-pixelComponentSize = sizeOf (JP.PixelBaseComponent Pixel ∋ undefined)
-
-pixelSize : Int
-pixelSize = pixelComponentSize * 4
 
 doubleToFloat : Double → Float
 doubleToFloat = realToFrac

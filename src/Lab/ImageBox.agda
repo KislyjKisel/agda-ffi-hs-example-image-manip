@@ -12,6 +12,7 @@ open import Ffi.Hs.Control.Monad.Trans.Reader             using (ReaderT; ask)
 open import Ffi.Hs.Data.Ord                               using (clamp)
 open import Ffi.Hs.Foreign.ForeignPtr                     using (ForeignPtr)
 open import Ffi.Hs.Foreign.ForeignPtr.Unsafe      as FPtr using ()
+open import Function.Base                                 using (_⟨_⟩_)
 open import Lab.Class.Level                               using (liftℓ1)
 open import Lab.Class.Product                             using (Product; extract)
 open import Lab.Params                                    using (windowWidth; windowHeight)
@@ -34,7 +35,7 @@ record ImageBox : Set where
         content   : IORef (Maybe (Tuple2 Image GL.TextureObject))
         position  : GL.Vector2 GLfloat
         scale     : IORef (GL.Vector2 GLfloat)
-        maxScale : GL.Vector2 Double
+        maxScale  : GL.Vector2 Double
 
     maxScaleW : Double
     maxScaleW with maxScale
@@ -50,16 +51,20 @@ record ImageBox : Set where
     contentHeight : IO Int
     contentHeight = readIORef content >>= pure ∘ maybe 0 (JP.imageHeight ∘ fst)
 
-    load : Image → IO {0ℓ} ⊤′
-    load img = do
+    load : (Text → IO {0ℓ} ⊤′) → Image → IO {0ℓ} ⊤′
+    load msg img = do
         -- ? unload
         let imgData    = JP.Image.imageData img
             width      = JP.imageWidth img
             height     = JP.imageHeight img
-            -- size       = SDL.mkV2 width height
-            -- imgDataLen = Vector.length imgData * pixelComponentSize
             imgDataPtr = subst ForeignPtr JP.PixelBaseComponent[PixelRGBA8] $ fst $
                 Vector.unsafeToForeignPtr0 imgData
+
+        msg $ "Image size: "
+            ⟨ Text.append ⟩ (Text.pack $ show width)
+            ⟨ Text.append ⟩ " × "
+            ⟨ Text.append ⟩ (Text.pack $ show height)
+            ⟨ Text.append ⟩ "\0"
 
         texture ← genObjectName
         GL.activeTexture $= GL.mkTextureUnit 0
@@ -82,13 +87,12 @@ record ImageBox : Set where
             ibHc = clamp (mkTuple2 0.0 maxScaleH) ibH
 
         writeIORef scale $ GL.mkVector2 (doubleToFloat ibWc) (doubleToFloat ibHc)
-
         pure _
 
-    loadFile : String → ExceptT String IO ⊤′
-    loadFile path = do
+    loadFile : (Text → IO {0ℓ} ⊤′) → String → ExceptT String IO ⊤′
+    loadFile msg path = do
         img ← mkExceptT $ JP.readImage path
-        liftIO $ load (JP.convertRGBA8 img)
+        liftIO $ load msg (JP.convertRGBA8 img)
 
     render : ∀{Env : Set 1ℓ} →
         ⦃ Product Mesh.Quad Env ⦄ →

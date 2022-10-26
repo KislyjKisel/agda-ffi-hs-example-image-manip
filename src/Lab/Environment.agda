@@ -22,6 +22,7 @@ record Env : Set₁ where
         srcIB            : ImageBox
         dstIB            : ImageBox
         infoUi           : IORef String
+        messages         : IORef (List Text)
 
 instance
     Product[Mesh,Env] : Product Quad Env
