@@ -14,8 +14,8 @@ import Lab.Input.Scale2D as Inp
 scale : Tuple2 Float Float → Image → IO Image
 scale (mkTuple2 scaleX scaleY) src = do
     dst ← grid
-    when (scaleX > doubleToFloat 1.0) $ fillRows    dst
-    when (scaleY > doubleToFloat 1.0) $ fillColumns dst
+    when (scaleX > f64⇒f32 1.0) $ fillRows    dst
+    when (scaleY > f64⇒f32 1.0) $ fillColumns dst
     JP.unsafeFreezeImage dst
     where
     srcW = JP.imageWidth src

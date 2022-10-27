@@ -86,8 +86,8 @@ Image = JP.Image Pixel
 MImage : Set
 MImage = JP.MutableImage (PrimState {0ℓ} IO) Pixel
 
-doubleToFloat : Double → Float
-doubleToFloat = realToFrac
+f64⇒f32 : Double → Float
+f64⇒f32 = realToFrac
 
 pixelToV4f : Pixel → SDL.V4 Float
 pixelToV4f (JP.mkPixelRGBA8 r g b a) =

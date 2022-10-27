@@ -85,7 +85,7 @@ record ImageBox : Set where
             ibWc = clamp (mkTuple2 0.0 maxScaleW) ibW
             ibHc = clamp (mkTuple2 0.0 maxScaleH) ibH
 
-        writeIORef scale $ GL.mkVector2 (doubleToFloat ibWc) (doubleToFloat ibHc)
+        writeIORef scale $ GL.mkVector2 (f64⇒f32 ibWc) (f64⇒f32 ibHc)
         pure _
 
     loadFile : (Text → IO {0ℓ} ⊤′) → String → ExceptT String IO ⊤′
@@ -116,7 +116,7 @@ record ImageBox : Set where
 new : GL.Vector2 GLfloat → GL.Vector2 Double → IO ImageBox
 new position maxScale = do
     content ← newIORef Nothing
-    scale   ← newIORef $ GL.mkVector2 (doubleToFloat 0.0) (doubleToFloat 0.0) 
+    scale   ← newIORef $ GL.mkVector2 (f64⇒f32 0.0) (f64⇒f32 0.0) 
     pure record
         { content  = content
         ; position = position

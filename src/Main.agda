@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K #-}
+{-# OPTIONS --without-K --allow-unsolved-metas #-}
 
 module Main where
 
@@ -28,6 +28,7 @@ open import Lab.Rendering.Program.Textured2D             using (textured2d)
 import Lab.Algorithm.NearestNeighbor as Algorithm
 import Lab.Algorithm.Bilinear        as Algorithm
 import Lab.Algorithm.CrucianCarp     as Algorithm
+import Lab.Algorithm.Rotation        as Algorithm
 
 import Ffi.Hs.Data.ByteString           as BS
 import Ffi.Hs.Data.ByteString.Internal  as BS
@@ -45,6 +46,7 @@ algorithms =
     Algorithm.nearest-neighbor ∷
     Algorithm.bilinear         ∷
     Algorithm.crucian-carp     ∷
+    Algorithm.rotation         ∷
     []
 
 selectableAlgGui : Env → Algorithm → IO {1ℓ} ⊤′
@@ -65,63 +67,86 @@ loop env = unlessQuit $ do
     ImGui.newFrame
 
     ImGui.begin "File\0"
-    ImGui.inputText "Path\0" env.imageFilePathUi 255
-    ImGui.button "Load\0" >>= λ (liftℓ btnClicked) → when btnClicked $ do
-        liftℓ path ← liftℓ1 $ get env.imageFilePathUi
-        liftℓ (Right _) ← liftℓ1 $ runExceptT $ ImageBox.loadFile env.srcIB
-            (message env.messages)
-            (Text.unpack path)
-            where liftℓ (Left err) → do
-                env.infoUi $= Text.unpack "Image reading error" ++ err
-                ImGui.openPopup "InfoPopup"
-        pure _
+    do
+        ImGui.inputText "Path\0" env.imageFilePathUi 255
 
-    ImGui.button "Save\0" >>= λ (liftℓ btnClicked) → when btnClicked $ do
-        liftℓ path ← liftℓ1 $ get env.imageFilePathUi
-        liftℓ (Just (mkTuple2 dstImg _)) ← liftℓ1 $ readIORef $ ImageBox.content env.dstIB
-            where liftℓ Nothing → do
-                env.infoUi $= Text.unpack "Nothing to save"
-                ImGui.openPopup "InfoPopup"
-        liftℓ1 $ JP.writePng (Text.unpack path) dstImg
+        ImGui.button "Load\0" >>= λ (liftℓ btnClicked) → when btnClicked $ do
+            liftℓ path ← liftℓ1 $ get env.imageFilePathUi
+            liftℓ (Right _) ← liftℓ1 $ runExceptT $ ImageBox.loadFile env.srcIB
+                (message env.messages)
+                (Text.unpack path)
+                where liftℓ (Left err) → do
+                    env.infoUi $= Text.unpack "Image reading error" ++ err
+                    ImGui.openPopup "InfoPopup"
+            pure _
 
-    liftℓ1 $ ImGui.button "Run\0" >>= λ (liftℓ clicked) → when clicked $ do
-        Just (mkTuple2 srcImg _) ← readIORef $ ImageBox.content env.srcIB
-            where Nothing → do
-                env.infoUi $= Text.unpack "No source image"
-                ImGui.openPopup "InfoPopup"
-        dstImg ← readIORef env.algorithm >>=ℓ λ (alg , inpSt) → do
-            inpVal ← Input.load (Algorithm.input alg) inpSt
-            Algorithm.run alg inpVal srcImg
-        ImageBox.load env.dstIB (message env.messages) dstImg
+        ImGui.sameLine
+        ImGui.button "Save\0" >>= λ (liftℓ btnClicked) → when btnClicked $ do
+            liftℓ path ← liftℓ1 $ get env.imageFilePathUi
+            liftℓ (Just (mkTuple2 dstImg _)) ← liftℓ1 $ readIORef $ ImageBox.content env.dstIB
+                where liftℓ Nothing → do
+                    env.infoUi $= Text.unpack "Nothing to save"
+                    ImGui.openPopup "InfoPopup"
+            liftℓ1 $ JP.writePng (Text.unpack path) dstImg
 
-    get env.algorithm >>= λ (alg , inpSt) → do
-        (liftℓ combo) ← ImGui.beginCombo "Algorithm\0" (Text.append (Algorithm.name alg) "\0")
-        when combo $ do
-            forM- algorithms (selectableAlgGui env)
-            ImGui.endCombo
-        liftℓ1 $ Input.ui (Algorithm.input alg) inpSt
+        ImGui.sameLine
+        liftℓ1 $ ImGui.button "Run\0" >>= λ (liftℓ clicked) → when clicked $ do
+            Just (mkTuple2 srcImg _) ← readIORef $ ImageBox.content env.srcIB
+                where Nothing → do
+                    env.infoUi $= Text.unpack "No source image"
+                    ImGui.openPopup "InfoPopup"
+            dstImg ← readIORef env.algorithm >>=ℓ λ (alg , inpSt) → do
+                inpVal ← Input.load (Algorithm.input alg) inpSt
+                Algorithm.run alg inpVal srcImg
+            ImageBox.load env.dstIB (message env.messages) dstImg
 
-    -- liftℓ1 do
-    --     messages ← get env.messages
-    --     ImGui.listBox "Messages\0" env.selectedMessage messages >>= λ (liftℓ b) → when b $ do
-    --         pure _
+        ImGui.sameLine
+        liftℓ1 do
+            liftℓ clicked ← ImGui.button "Source result\0"
+            when clicked do
+                Just (mkTuple2 dstImg _) ← readIORef $ ImageBox.content env.dstIB
+                    where Nothing → do
+                        env.infoUi $= Text.unpack "No result"
+                        ImGui.openPopup "InfoPopup"
+                ImageBox.load env.srcIB (message env.messages) dstImg
 
-    liftℓ1 do
-        errors ← get GL.errors
-        forM- errors λ{ (GL.mkError c s) → do
-                putStrLn s
-                env.infoUi $= "GL error: " ++ s
-                ImGui.openPopup "InfoPopup"
-            }
+        readIORef env.algorithm >>= λ (curAlg , inpSt) → do
+            (liftℓ combo) ← ImGui.beginCombo "Algorithm\0" (Text.append (Algorithm.name curAlg) "\0")
+            when combo $ do
+                forM- algorithms λ alg → do
+                    liftℓ selected ← ImGui.selectable (Text.append (Algorithm.name alg) "\0")
+                    when selected do
+                        liftℓ newInpSt ← liftℓ1 $ Input.new (Algorithm.input alg)
+                        Env.algorithm env $= alg , newInpSt
+                ImGui.endCombo
 
-    ImGui.beginPopupModal "InfoPopup" >>= λ (liftℓ flag) → when flag $ do
-        get env.infoUi >>=ℓ ImGui.text ∘ Text.pack
-        unliftℓ <$> ImGui.button "Ok\0" >>=ℓ flip when ImGui.closeCurrentPopup
-        ImGui.endPopup
-    ImGui.end
+
+        do
+            curAlg , inpSt ← readIORef env.algorithm
+            liftℓ1 $ Input.ui (Algorithm.input curAlg) inpSt
+
+        -- liftℓ1 do
+        --     messages ← get env.messages
+        --     ImGui.listBox "Messages\0" env.selectedMessage messages >>= λ (liftℓ b) → when b $ do
+        --         pure _
+
+        liftℓ1 do
+            errors ← get GL.errors
+            forM- errors λ{ (GL.mkError c s) → do
+                    putStrLn s
+                    env.infoUi $= "GL error: " ++ s
+                    ImGui.openPopup "InfoPopup"
+                }
+
+        ImGui.beginPopupModal "InfoPopup" >>= λ (liftℓ flag) → when flag $ do
+            get env.infoUi >>=ℓ ImGui.text ∘ Text.pack
+            unliftℓ <$> ImGui.button "Ok\0" >>=ℓ flip when ImGui.closeCurrentPopup
+            ImGui.endPopup
+
+    ImGui.end -- "File" window
 
     GL.clearColor $= GL.mkColor4 (realToFrac 0.0) (realToFrac 0.3) (realToFrac 0.5) (realToFrac 1.0)
-    liftℓ1 {bℓ = 1ℓ} $ GL.clear (GL.ColorBuffer ∷ GL.DepthBuffer ∷ [])
+    liftℓ1 $ GL.clear (GL.ColorBuffer ∷ GL.DepthBuffer ∷ [])
 
     runReaderT (ImageBox.render env.srcIB) env
     runReaderT (ImageBox.render env.dstIB) env
@@ -163,8 +188,8 @@ main = do
         infoUi          ← newIORef ""
         mesh-quad       ← Quad.new
         prog-textured2d ← Program.new textured2d
-        srcIB           ← ImageBox.new (GL.mkVector2 (doubleToFloat -0.5) (doubleToFloat 0.0)) (GL.mkVector2 0.421 0.8)
-        dstIB           ← ImageBox.new (GL.mkVector2 (doubleToFloat 0.452) (doubleToFloat 0.0)) (GL.mkVector2 0.421 0.8)
+        srcIB           ← ImageBox.new (GL.mkVector2 (f64⇒f32 -0.5) (f64⇒f32 0.0)) (GL.mkVector2 0.421 0.8)
+        dstIB           ← ImageBox.new (GL.mkVector2 (f64⇒f32 0.452) (f64⇒f32 0.0)) (GL.mkVector2 0.421 0.8)
         messages        ← newIORef []
         selectedMessage ← newIORef (fromℕ 0)
         unliftℓ1 $
