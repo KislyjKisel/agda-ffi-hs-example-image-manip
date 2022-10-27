@@ -10,8 +10,7 @@ open import Ffi.Hs.Control.Monad.Trans.Class              using (lift)
 open import Ffi.Hs.Control.Monad.Trans.Except             using (ExceptT; mkExceptT)
 open import Ffi.Hs.Control.Monad.Trans.Reader             using (ReaderT; ask)
 open import Ffi.Hs.Data.Ord                               using (clamp)
-open import Ffi.Hs.Foreign.ForeignPtr                     using (ForeignPtr)
-open import Ffi.Hs.Foreign.ForeignPtr.Unsafe      as FPtr using ()
+open import Ffi.Hs.Foreign.ForeignPtr                     using (ForeignPtr; withForeignPtr)
 open import Function.Base                                 using (_⟨_⟩_)
 open import Lab.Class.Level                               using (liftℓ1)
 open import Lab.Class.Product                             using (Product; extract)
@@ -64,7 +63,6 @@ record ImageBox : Set where
             ⟨ Text.append ⟩ (Text.pack $ show width)
             ⟨ Text.append ⟩ " × "
             ⟨ Text.append ⟩ (Text.pack $ show height)
-            ⟨ Text.append ⟩ "\0"
 
         texture ← genObjectName
         GL.activeTexture $= GL.mkTextureUnit 0
@@ -72,7 +70,8 @@ record ImageBox : Set where
         GL.textureFilter GL.Texture2D $= mkTuple2 (mkTuple2 GL.Nearest Nothing) GL.Nearest
         GL.textureWrapMode GL.Texture2D GL.S $= mkTuple2 GL.Repeated GL.ClampToEdge
         GL.textureWrapMode GL.Texture2D GL.T $= mkTuple2 GL.Repeated GL.ClampToEdge
-        GL.texImage2D GL.Texture2D GL.NoProxy 0 GL.RGBA8 (GL.mkTextureSize2D (toEnum width) (toEnum height)) 0 (GL.mkPixelData GL.RGBA GL.UnsignedByte $ FPtr.unsafeForeignPtrToPtr imgDataPtr)
+        withForeignPtr imgDataPtr λ ptr →
+            GL.texImage2D GL.Texture2D GL.NoProxy 0 GL.RGBA8 (GL.mkTextureSize2D (toEnum width) (toEnum height)) 0 (GL.mkPixelData GL.RGBA GL.UnsignedByte ptr)
         GL.textureBinding GL.Texture2D $= Nothing
 
         writeIORef content (Just (mkTuple2 img texture))

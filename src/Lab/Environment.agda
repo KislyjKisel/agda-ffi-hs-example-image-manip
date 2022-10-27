@@ -23,6 +23,7 @@ record Env : Set₁ where
         dstIB            : ImageBox
         infoUi           : IORef String
         messages         : IORef (List Text)
+        selectedMessage  : IORef Int
 
 instance
     Product[Mesh,Env] : Product Quad Env

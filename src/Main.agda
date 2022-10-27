@@ -54,6 +54,9 @@ selectableAlgGui env a = do
         liftℓ inp ← liftℓ1 $ Input.new (Algorithm.input a)
         Env.algorithm env $= a , inp
 
+message : IORef (List Text) → Text → IO {0ℓ} ⊤′
+message msr m = liftℓ1 $ modifyIORef msr $ _++ (Text.append m "\0" ∷ [])
+
 {-# NON_TERMINATING #-}
 loop : Env → IO {sucℓ 0ℓ} ⊤′
 loop env = unlessQuit $ do
@@ -66,7 +69,7 @@ loop env = unlessQuit $ do
     ImGui.button "Load\0" >>= λ (liftℓ btnClicked) → when btnClicked $ do
         liftℓ path ← liftℓ1 $ get env.imageFilePathUi
         liftℓ (Right _) ← liftℓ1 $ runExceptT $ ImageBox.loadFile env.srcIB
-            (λ m → liftℓ1 $ modifyIORef env.messages $ _++ (m ∷ []))
+            (message env.messages)
             (Text.unpack path)
             where liftℓ (Left err) → do
                 env.infoUi $= Text.unpack "Image reading error" ++ err
@@ -89,7 +92,7 @@ loop env = unlessQuit $ do
         dstImg ← readIORef env.algorithm >>=ℓ λ (alg , inpSt) → do
             inpVal ← Input.load (Algorithm.input alg) inpSt
             Algorithm.run alg inpVal srcImg
-        ImageBox.load env.dstIB (λ m → liftℓ1 $ modifyIORef env.messages $ _++ (m ∷ [])) dstImg
+        ImageBox.load env.dstIB (message env.messages) dstImg
 
     get env.algorithm >>= λ (alg , inpSt) → do
         (liftℓ combo) ← ImGui.beginCombo "Algorithm\0" (Text.append (Algorithm.name alg) "\0")
@@ -98,11 +101,10 @@ loop env = unlessQuit $ do
             ImGui.endCombo
         liftℓ1 $ Input.ui (Algorithm.input alg) inpSt
 
-    liftℓ1 do
-        selectionIndexRef ← newIORef (fromℕ 0)
-        messages ← get env.messages
-        ImGui.listBox "Messages\0" selectionIndexRef messages >>= λ (liftℓ b) → when b $ do
-            pure _
+    -- liftℓ1 do
+    --     messages ← get env.messages
+    --     ImGui.listBox "Messages\0" env.selectedMessage messages >>= λ (liftℓ b) → when b $ do
+    --         pure _
 
     liftℓ1 do
         errors ← get GL.errors
@@ -164,6 +166,7 @@ main = do
         srcIB           ← ImageBox.new (GL.mkVector2 (doubleToFloat -0.5) (doubleToFloat 0.0)) (GL.mkVector2 0.421 0.8)
         dstIB           ← ImageBox.new (GL.mkVector2 (doubleToFloat 0.452) (doubleToFloat 0.0)) (GL.mkVector2 0.421 0.8)
         messages        ← newIORef []
+        selectedMessage ← newIORef (fromℕ 0)
         unliftℓ1 $
             newIORef (Algorithm.nearest-neighbor , inputSt) >>= λ algorithm →
                 loop record
@@ -176,6 +179,7 @@ main = do
                     ; dstIB           = dstIB
                     ; infoUi          = infoUi
                     ; messages        = messages
+                    ; selectedMessage = selectedMessage
                     }
 
     SDL.destroyWindow window
