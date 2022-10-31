@@ -53,9 +53,8 @@ scale (mkTuple2 scaleX scaleY) src = do
                     v4fToPixel $ col0 ^+^ (realToFrac Δx) *^ delta
 
     fillColumns : MImage → IO ⊤′
-    fillColumns dst = forM- [ 0 ⋯ dstW - 1 ] $
-        λ dstX → forM- [ 0 ⋯ srcH - 2 ] $
-            λ srcY → do
+    fillColumns dst = forM- [ 0 ⋯ dstW - 1 ] λ dstX →
+        forM- [ 0 ⋯ srcH - 2 ] λ srcY → do
                 let dstY0 = floor $ realToFrac srcY * scaleY
                     dstY1 = floor $ realToFrac (srcY + 1) * scaleY
                     gap   = dstY1 - dstY0 - 1
@@ -72,6 +71,6 @@ scale (mkTuple2 scaleX scaleY) src = do
 crucian-carp : Algorithm
 crucian-carp = record
     { name  = "Crucian Carp"
-    ; input = Inp.Scale2D
+    ; input = Inp.scale2d
     ; run   = scale
     }

@@ -10,12 +10,18 @@ executable lab5-gfx1
         MAlonzo.Code.Lab.Algorithm.Bilinear
         MAlonzo.Code.Lab.Algorithm.CrucianCarp
         MAlonzo.Code.Lab.Algorithm.NearestNeighbor
+        MAlonzo.Code.Lab.Algorithm.Neighborhood
+        MAlonzo.Code.Lab.Algorithm.Neighborhood.Median
+        MAlonzo.Code.Lab.Algorithm.Neighborhood.Kernel
         MAlonzo.Code.Lab.Algorithm.Rotation
         MAlonzo.Code.Lab.Class.Level
         MAlonzo.Code.Lab.Class.Product
         MAlonzo.Code.Lab.Environment
         MAlonzo.Code.Lab.ImageBox
         MAlonzo.Code.Lab.Input
+        MAlonzo.Code.Lab.Input.Empty
+        MAlonzo.Code.Lab.Input.Kernel
+        MAlonzo.Code.Lab.Input.Options
         MAlonzo.Code.Lab.Input.Rotation
         MAlonzo.Code.Lab.Input.Scale2D
         MAlonzo.Code.Lab.Params

@@ -27,6 +27,6 @@ scale (mkTuple2 scaleX scaleY) src = pure $
 nearest-neighbor : Algorithm
 nearest-neighbor = record
     { name  = "Nearest Neighbor"
-    ; input = Inp.Scale2D
+    ; input = Inp.scale2d
     ; run   = scale
     }

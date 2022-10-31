@@ -67,6 +67,6 @@ scale (mkTuple2 scaleX scaleY) src = pure $
 bilinear : Algorithm
 bilinear = record
     { name  = "Bilinear"
-    ; input = Inp.Scale2D
+    ; input = Inp.scale2d
     ; run   = scale
     }

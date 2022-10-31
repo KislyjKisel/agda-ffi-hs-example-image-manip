@@ -53,6 +53,6 @@ rotate angleDeg src = pure $ JP.generateImage generator dstW dstH
 rotation : Algorithm
 rotation = record
     { name  = "Rotation"
-    ; input = Inp.Rotation
+    ; input = Inp.rotation
     ; run   = rotate
     }

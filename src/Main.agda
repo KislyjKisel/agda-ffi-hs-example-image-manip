@@ -25,10 +25,12 @@ open import Lab.Rendering.Mesh.Quad          as Quad     using (Quad)
 open import Lab.Rendering.Program            as Program  using (Program)
 open import Lab.Rendering.Program.Textured2D             using (textured2d)
 
-import Lab.Algorithm.NearestNeighbor as Algorithm
-import Lab.Algorithm.Bilinear        as Algorithm
-import Lab.Algorithm.CrucianCarp     as Algorithm
-import Lab.Algorithm.Rotation        as Algorithm
+import Lab.Algorithm.NearestNeighbor     as Algorithm
+import Lab.Algorithm.Bilinear            as Algorithm
+import Lab.Algorithm.CrucianCarp         as Algorithm
+import Lab.Algorithm.Rotation            as Algorithm
+import Lab.Algorithm.Neighborhood.Median as Algorithm
+import Lab.Algorithm.Neighborhood.Kernel as Algorithm
 
 import Ffi.Hs.Data.ByteString           as BS
 import Ffi.Hs.Data.ByteString.Internal  as BS
@@ -47,14 +49,18 @@ algorithms =
     Algorithm.bilinear         ∷
     Algorithm.crucian-carp     ∷
     Algorithm.rotation         ∷
+    Algorithm.medianC          ∷
+    Algorithm.medianP          ∷
+    Algorithm.kernel-custom    ∷
+    Algorithm.kernel-preset    ∷
     []
 
-selectableAlgGui : Env → Algorithm → IO {1ℓ} ⊤′
-selectableAlgGui env a = do
-    liftℓ selected ← ImGui.selectable (Text.append (Algorithm.name a) "\0")
-    when selected do
-        liftℓ inp ← liftℓ1 $ Input.new (Algorithm.input a)
-        Env.algorithm env $= a , inp
+-- selectableAlgGui : Env → Algorithm → IO {1ℓ} ⊤′
+-- selectableAlgGui env a = do
+--     liftℓ selected ← ImGui.selectable (Text.append (Algorithm.name a) "\0")
+--     when selected do
+--         liftℓ inp ← liftℓ1 $ Input.new (Algorithm.input a)
+--         Env.algorithm env $= a , inp
 
 message : IORef (List Text) → Text → IO {0ℓ} ⊤′
 message msr m = liftℓ1 $ modifyIORef msr $ _++ (Text.append m "\0" ∷ [])

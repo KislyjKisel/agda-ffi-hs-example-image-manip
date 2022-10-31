@@ -7,8 +7,8 @@ open import Lab.Input using (Input)
 
 import Ffi.Hs.DearImGui as ImGui
 
-Rotation : Input
-Rotation = record
+rotation : Input
+rotation = record
     { State = IORef Int
     ; Value = Int
     ; new   = newIORef 0

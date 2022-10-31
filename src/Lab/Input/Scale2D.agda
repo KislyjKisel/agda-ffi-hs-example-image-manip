@@ -7,8 +7,8 @@ open import Lab.Input using (Input)
 
 import Ffi.Hs.DearImGui as ImGui
 
-Scale2D : Input
-Scale2D = record
+scale2d : Input
+scale2d = record
     { State = Tuple2 (IORef Float) (IORef Float)
     ; Value = Tuple2 Float Float
     ; new = mkTuple2
