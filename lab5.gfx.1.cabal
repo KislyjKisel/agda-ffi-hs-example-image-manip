@@ -5,7 +5,6 @@ version:            0.1.0.0
 executable lab5-gfx1
     main-is:          Main.hs
     other-modules:
-        -- MAlonzo.Code.Lab.Class.Sum
         MAlonzo.Code.Lab.Algorithm
         MAlonzo.Code.Lab.Algorithm.Bilinear
         MAlonzo.Code.Lab.Algorithm.CrucianCarp
