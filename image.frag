@@ -1,11 +1,11 @@
 #version 430 core
 
+uniform sampler2D uImageTexture;
+
 in vec2 fTexCoord;
 
 out vec4 FragColor;
 
-uniform sampler2D uImageTexture;
-
-void main() { // vec4(1.0, 0.0, 1.0, 1.0);
+void main() {
     FragColor = texture(uImageTexture, fTexCoord);
 }
