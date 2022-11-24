@@ -1,4 +1,4 @@
-name: lab5.gfx.1
+name: image-manip
 include: src
 depend:
     standard-library-2.0

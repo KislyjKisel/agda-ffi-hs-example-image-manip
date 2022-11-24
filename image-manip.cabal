@@ -2,7 +2,7 @@ cabal-version:      2.4
 name:               lab5-gfx1
 version:            0.1.0.0
 
-executable lab5-gfx1
+executable image-manip
     main-is:          Main.hs
     other-modules:
         MAlonzo.Code.Lab.Algorithm
