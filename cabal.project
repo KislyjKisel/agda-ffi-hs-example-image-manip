@@ -7,4 +7,4 @@ allow-newer:
 allow-older:
     JuicyPixels:vector
 
-package lab5-gfx1
+package image-manip
