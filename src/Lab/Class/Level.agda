@@ -2,12 +2,14 @@
 
 module Lab.Class.Level where
 
-open import Agda.Primitive             using (Setω; _⊔_)
+open import Agda.Primitive using (Setω; _⊔_)
+
 open import Ffi.Hs.-base.Level         using (Liftℓ; liftℓ; unliftℓ)
 open import Ffi.Hs.Control.Applicative using (Applicative; Applicative[F]⇒Functor[F]; pure; _<*>_)
 open import Ffi.Hs.Control.Monad       using (Monad; return; _>>_; _>>=_)
 open import Ffi.Hs.Data.Function       using (_∘_; _$_)
 open import Ffi.Hs.Data.Functor        using (Functor; fmap; _<$>_; _<$_)
+
 
 Functorℓ : (∀{ℓ} → Set ℓ → Set ℓ) → Setω
 Functorℓ F = ∀{ℓ} → Functor (F {ℓ})

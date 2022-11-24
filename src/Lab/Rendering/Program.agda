@@ -2,14 +2,15 @@
 
 module Lab.Rendering.Program where
 
-open import Lab.Prelude
-open import Data.Vec.Base as Vec using (Vec)
 open import Data.Product using (_×_; _,_; proj₁; proj₂)
-open import Ffi.Hs.Data.Foldable using (forM-)
-open import Ffi.Hs.Control.Applicative using (unless)
 
-import Ffi.Hs.Data.ByteString as BS
+open import Ffi.Hs.Control.Applicative using (unless)
+open import Ffi.Hs.Data.Foldable       using (forM-)
+import Ffi.Hs.Data.ByteString              as BS
 import Ffi.Hs.Graphics.Rendering.OpenGL.GL as GL
+
+open import Lab.Prelude
+
 
 module VAll where
     open import Data.Vec.Relation.Unary.All public
@@ -47,9 +48,6 @@ data UniformType : Set where
 UniformValue : UniformType → Set
 UniformValue uSampler2D = GLint
 UniformValue uVec2      = GL.Vector2 GLfloat
-
--- Uniform[UniformValue[T]] : ∀{t} → GL.Uniform (UniformValue t)
--- Uniform[UniformValue[T]] {t} = ?
 
 uniform : ∀{ℓ t} → GL.UniformLocation → UniformValue t → IO {ℓ} ⊤′
 uniform {t = uSampler2D} loc val = GL.uniform loc $= val

@@ -2,12 +2,13 @@
 
 module Lab.Input.Options where
 
-open import Lab.Input using (Input)
 open import Ffi.Hs.Control.Applicative using (when)
-open import Ffi.Hs.Data.Foldable using (forM-)
+open import Ffi.Hs.Data.Foldable       using (forM-)
+import Ffi.Hs.DearImGui as ImGui
+
+open import Lab.Input   using (Input)
 open import Lab.Prelude
 
-import Ffi.Hs.DearImGui as ImGui
 
 options : Text → List Text → Input
 options name opts = record

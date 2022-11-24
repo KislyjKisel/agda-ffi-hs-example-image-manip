@@ -2,8 +2,9 @@
 
 module Lab.Algorithm where
 
+open import Lab.Input   using (Input)
 open import Lab.Prelude
-open import Lab.Input using (Input)
+
 
 record Algorithm : Set₁ where
     field

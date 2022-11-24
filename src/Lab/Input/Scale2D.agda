@@ -2,10 +2,11 @@
 
 module Lab.Input.Scale2D where
 
-open import Lab.Prelude
-open import Lab.Input using (Input)
-
 import Ffi.Hs.DearImGui as ImGui
+
+open import Lab.Input   using (Input)
+open import Lab.Prelude
+
 
 scale2d : Input
 scale2d = record

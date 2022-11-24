@@ -5,20 +5,22 @@ module Lab.ImageBox where
 open import Lab.Prelude
 
 open import Data.Vec.Relation.Unary.All           as VAll using ()
-open import Ffi.Hs.Control.Monad.IO.Class                 using (liftIO)
-open import Ffi.Hs.Control.Monad.Trans.Class              using (lift)
-open import Ffi.Hs.Control.Monad.Trans.Except             using (ExceptT; mkExceptT)
-open import Ffi.Hs.Control.Monad.Trans.Reader             using (ReaderT; ask)
-open import Ffi.Hs.Data.Ord                               using (clamp)
-open import Ffi.Hs.Foreign.ForeignPtr                     using (ForeignPtr; withForeignPtr)
 open import Function.Base                                 using (_⟨_⟩_)
-open import Lab.Class.Level                               using (liftℓ1)
-open import Lab.Class.Product                             using (Product; extract)
-open import Lab.Params                                    using (windowWidth; windowHeight)
-open import Lab.Rendering.Mesh.Quad               as Mesh using ()
-open import Lab.Rendering.Program                 as Prog using (Program)
-open import Lab.Rendering.Program.Textured2D      as Prog using ()
 open import Relation.Binary.PropositionalEquality         using (subst)
+
+open import Ffi.Hs.Control.Monad.IO.Class     using (liftIO)
+open import Ffi.Hs.Control.Monad.Trans.Class  using (lift)
+open import Ffi.Hs.Control.Monad.Trans.Except using (ExceptT; mkExceptT)
+open import Ffi.Hs.Control.Monad.Trans.Reader using (ReaderT; ask)
+open import Ffi.Hs.Data.Ord                   using (clamp)
+open import Ffi.Hs.Foreign.ForeignPtr         using (ForeignPtr; withForeignPtr)
+
+open import Lab.Class.Level                          using (liftℓ1)
+open import Lab.Class.Product                        using (Product; extract)
+open import Lab.Params                               using (windowWidth; windowHeight)
+open import Lab.Rendering.Mesh.Quad          as Mesh using ()
+open import Lab.Rendering.Program            as Prog using (Program)
+open import Lab.Rendering.Program.Textured2D as Prog using ()
 
 import Ffi.Hs.Control.Monad.Trans.Reader-Instanced
 import Ffi.Hs.Control.Monad.Trans.Except-Instanced
@@ -52,7 +54,6 @@ record ImageBox : Set where
 
     load : (Text → IO {0ℓ} ⊤′) → Image → IO {0ℓ} ⊤′
     load msg img = do
-        -- ? unload
         let imgData    = JP.Image.imageData img
             width      = JP.imageWidth img
             height     = JP.imageHeight img

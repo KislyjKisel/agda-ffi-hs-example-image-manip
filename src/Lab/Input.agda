@@ -4,6 +4,7 @@ module Lab.Input where
 
 open import Lab.Prelude
 
+
 record Input : Set₁ where
     field
         State : Set

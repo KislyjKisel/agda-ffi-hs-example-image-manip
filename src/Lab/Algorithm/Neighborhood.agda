@@ -2,13 +2,14 @@
 
 module Lab.Algorithm.Neighborhood where
 
-open import Lab.Prelude
-open import Data.Product as × using (_×_; _,_)
-open import Data.Nat.Divisibility as ℕ using ()
-open import Data.Nat.Base as ℕ using ()
+open import Data.Nat.Divisibility                  using (_∣?_)
 open import Relation.Nullary.Decidable.Core as Dec using ()
-open import Ffi.Hs.Data.Word using (Word8)
+
+open import Ffi.Hs.Data.Word     using (Word8)
 open import Ffi.Hs.Data.Foldable using (forM-)
+
+open import Lab.Prelude
+
 
 red : Pixel → Word8
 red (JP.mkPixelRGBA8 r g b a) = r
@@ -29,7 +30,7 @@ percomp f p = JP.mkPixelRGBA8
     (f $ Vec.map (Vec.map blue)  p)
     (f $ Vec.map (Vec.map alpha) p)
 
-neighborhoodP : Bool → (size : ℕ) → ⦃ Dec.False (2 ℕ.∣? size) ⦄ → Pixel → (Vec (Vec Pixel size) size → Pixel) → Image → IO Image
+neighborhoodP : Bool → (size : ℕ) → ⦃ Dec.False (2 ∣? size) ⦄ → Pixel → (Vec (Vec Pixel size) size → Pixel) → Image → IO Image
 neighborhoodP rec size border f src = case rec of λ
     { False → pure $ JP.generateImage (λ x y → f $ near x y) srcW srcH
     ; True → do
@@ -58,5 +59,5 @@ neighborhoodP rec size border f src = case rec of λ
             y′ = y + fromℕ (Fin.toℕ i) - fromℕ kernelOffset
         in if inside x′ y′ then JP.readPixel dst x′ y′ else (pure $ border)
 
-neighborhoodC : Bool → (size : ℕ) → ⦃ Dec.False (2 ℕ.∣? size) ⦄ → Pixel → (Vec (Vec Word8 size) size → Word8) → Image → IO Image
+neighborhoodC : Bool → (size : ℕ) → ⦃ Dec.False (2 ∣? size) ⦄ → Pixel → (Vec (Vec Word8 size) size → Word8) → Image → IO Image
 neighborhoodC rec size border f = neighborhoodP rec size border (percomp f)

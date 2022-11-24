@@ -2,14 +2,15 @@
 
 module Lab.Input.Kernel where
 
-open import Lab.Prelude
-open import Lab.Input using (Input)
-open import Data.Vec.Base using (Vec)
-open import Data.Nat.Divisibility using (_∣?_)
+open import Data.Nat.Divisibility                  using (_∣?_)
+open import Data.Product                           using (_×_; _,_)
 open import Relation.Nullary.Decidable.Core as Dec using ()
-open import Data.Product using (_×_; _,_)
 
 import Ffi.Hs.DearImGui as ImGui
+
+open import Lab.Input   using (Input)
+open import Lab.Prelude
+
 
 kernel : (n : ℕ) → ⦃ Dec.False (2 ∣? n) ⦄ → Input
 kernel n = record

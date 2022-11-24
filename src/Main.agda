@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K --allow-unsolved-metas #-}
+{-# OPTIONS --without-K #-}
 
 module Main where
 
@@ -13,6 +13,14 @@ open import Ffi.Hs.Control.Monad.Trans.Reader using (runReaderT)
 open import Ffi.Hs.Data.Foldable              using (any; mapM-; forM-)
 open import Ffi.Hs.Foreign.C.Types            using (CInt)
 open import Ffi.Hs.Foreign.ForeignPtr         using (ForeignPtr)
+import Ffi.Hs.Data.ByteString           as BS
+import Ffi.Hs.Data.ByteString.Internal  as BS
+import Ffi.Hs.Data.Vector.Storable      as Vector
+import Ffi.Hs.Graphics.Rendering.OpenGL as GL
+import Ffi.Hs.DearImGui            as ImGui
+import Ffi.Hs.DearImGui.SDL        as ImGui
+import Ffi.Hs.DearImGui.SDL.OpenGL as ImGui
+import Ffi.Hs.DearImGui.OpenGL3    as ImGui
 
 open import Lab.Algorithm                                using (Algorithm)
 open import Lab.Class.Level
@@ -24,23 +32,12 @@ open import Lab.Prelude
 open import Lab.Rendering.Mesh.Quad          as Quad     using (Quad)
 open import Lab.Rendering.Program            as Program  using (Program)
 open import Lab.Rendering.Program.Textured2D             using (textured2d)
-
 import Lab.Algorithm.NearestNeighbor     as Algorithm
 import Lab.Algorithm.Bilinear            as Algorithm
 import Lab.Algorithm.CrucianCarp         as Algorithm
 import Lab.Algorithm.Rotation            as Algorithm
 import Lab.Algorithm.Neighborhood.Median as Algorithm
 import Lab.Algorithm.Neighborhood.Kernel as Algorithm
-
-import Ffi.Hs.Data.ByteString           as BS
-import Ffi.Hs.Data.ByteString.Internal  as BS
-import Ffi.Hs.Data.Vector.Storable      as Vector
-import Ffi.Hs.Graphics.Rendering.OpenGL as GL
-
-import Ffi.Hs.DearImGui            as ImGui
-import Ffi.Hs.DearImGui.SDL        as ImGui
-import Ffi.Hs.DearImGui.SDL.OpenGL as ImGui
-import Ffi.Hs.DearImGui.OpenGL3    as ImGui
 
 
 algorithms : List Algorithm
@@ -54,13 +51,6 @@ algorithms =
     Algorithm.kernel-custom    ∷
     Algorithm.kernel-preset    ∷
     []
-
--- selectableAlgGui : Env → Algorithm → IO {1ℓ} ⊤′
--- selectableAlgGui env a = do
---     liftℓ selected ← ImGui.selectable (Text.append (Algorithm.name a) "\0")
---     when selected do
---         liftℓ inp ← liftℓ1 $ Input.new (Algorithm.input a)
---         Env.algorithm env $= a , inp
 
 message : IORef (List Text) → Text → IO {0ℓ} ⊤′
 message msr m = liftℓ1 $ modifyIORef msr $ _++ (Text.append m "\0" ∷ [])

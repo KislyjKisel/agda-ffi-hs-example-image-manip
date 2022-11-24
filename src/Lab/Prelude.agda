@@ -40,12 +40,11 @@ open import Agda.Builtin.Int public
 
 module ℤ = Agda.Builtin.Int
 
-open import Agda.Builtin.Nat public
-    using ()
-    renaming (Nat to ℕ)
-    hiding (module Nat)
+open import Data.Nat.Base public
+    using (ℕ)
+    hiding (module ℕ)
 
-module ℕ = Agda.Builtin.Nat
+module ℕ = Data.Nat.Base
 
 open import Agda.Builtin.Equality public
     using (_≡_)

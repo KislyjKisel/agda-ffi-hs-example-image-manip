@@ -8,6 +8,7 @@ open import Data.List.Base using (List)
 open import Data.Nat.Base  using (ℕ)
 open import Data.Vec.Base  using (Vec)
 
+
 record Product {aℓ bℓ} (A : Set aℓ) (B : Set bℓ) : Set (aℓ ⊔ bℓ) where
     field
         extract : B → A

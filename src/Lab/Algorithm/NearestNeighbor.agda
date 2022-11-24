@@ -5,7 +5,7 @@ module Lab.Algorithm.NearestNeighbor where
 open import Lab.Prelude
 open import Lab.Algorithm using (Algorithm)
 
-import Lab.Input.Scale2D as Inp
+import Lab.Input.Scale2D as Input
 
 
 scale : Tuple2 Float Float → Image → IO Image
@@ -27,6 +27,6 @@ scale (mkTuple2 scaleX scaleY) src = pure $
 nearest-neighbor : Algorithm
 nearest-neighbor = record
     { name  = "Nearest Neighbor"
-    ; input = Inp.scale2d
+    ; input = Input.scale2d
     ; run   = scale
     }

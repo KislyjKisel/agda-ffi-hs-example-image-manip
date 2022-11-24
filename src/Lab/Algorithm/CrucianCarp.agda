@@ -5,10 +5,11 @@ module Lab.Algorithm.CrucianCarp where
 open import Ffi.Hs.Control.Applicative using (when)
 open import Ffi.Hs.Data.Foldable       using (forM-)
 open import Ffi.Hs.Linear.Vector       using (_*^_; _^+^_; _^-^_; _^/_)
-open import Lab.Algorithm              using (Algorithm)
+
+open import Lab.Algorithm using (Algorithm)
 open import Lab.Prelude
 
-import Lab.Input.Scale2D as Inp
+import Lab.Input.Scale2D as Input
 
 
 scale : Tuple2 Float Float → Image → IO Image
@@ -71,6 +72,6 @@ scale (mkTuple2 scaleX scaleY) src = do
 crucian-carp : Algorithm
 crucian-carp = record
     { name  = "Crucian Carp"
-    ; input = Inp.scale2d
+    ; input = Input.scale2d
     ; run   = scale
     }

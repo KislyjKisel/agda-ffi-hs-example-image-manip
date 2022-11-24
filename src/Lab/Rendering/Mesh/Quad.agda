@@ -2,14 +2,14 @@
 
 module Lab.Rendering.Mesh.Quad where
 
-open import Lab.Prelude
-
-open import Ffi.Hs.Foreign.Ptr using (Ptr; nullPtr)
 open import Ffi.Hs.Foreign.Marshal.Array using (withArray)
-open import Ffi.Hs.Foreign.Storable using (sizeOf)
+open import Ffi.Hs.Foreign.Ptr           using (Ptr; nullPtr)
+open import Ffi.Hs.Foreign.Storable      using (sizeOf)
+import Ffi.Hs.Graphics.Rendering.OpenGL.GL as GL
+
+open import Lab.Prelude
 open import Lab.Class.Level using (liftℓ1)
 
-import Ffi.Hs.Graphics.Rendering.OpenGL.GL as GL
 
 record Quad : Set where
     field

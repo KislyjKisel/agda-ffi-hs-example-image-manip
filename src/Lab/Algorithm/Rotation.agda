@@ -6,7 +6,8 @@ open import Data.Product  using (_×_; _,_; proj₁; proj₂)
 open import Lab.Algorithm using (Algorithm)
 open import Lab.Prelude
 
-import Lab.Input.Rotation as Inp
+import Lab.Input.Rotation as Input
+
 
 rotateV2 : Double → Double × Double → Double × Double
 rotateV2 θ (x , y) = let
@@ -14,10 +15,6 @@ rotateV2 θ (x , y) = let
     y′ = realToFrac x * sin θ + realToFrac y * cos θ
     in
     x′ , y′
-
--- rotateV2Around : Double → (o p : Double × Double) → Double × Double
--- rotateV2Around θ (x₀ , y₀) (x , y) with rotateV2 θ (x - x₀ , y - y₀)
--- ... | (x′ , y′) = x₀ + x′ , y₀ + y′
 
 rotate : Int → Image → IO Image
 rotate angleDeg src = pure $ JP.generateImage generator dstW dstH
@@ -43,16 +40,16 @@ rotate angleDeg src = pure $ JP.generateImage generator dstW dstH
         then JP.pixelAt src srcX srcY
         else JP.mkPixelRGBA8 0 0 0 255
         where
-        dstXf = realToFrac dstX
-        dstYf = realToFrac dstY
+        dstXf  = realToFrac dstX
+        dstYf  = realToFrac dstY
         srcOff = rotateV2 (negate angleRad) (dstXf - dstX₀ , dstYf - dstY₀)
-        srcX = floor $ srcX₀ + proj₁ srcOff
-        srcY = floor $ srcY₀ + proj₂ srcOff
+        srcX   = floor $ srcX₀ + proj₁ srcOff
+        srcY   = floor $ srcY₀ + proj₂ srcOff
         inside = srcX >= 0 && srcX < srcW && srcY >= 0 && srcY < srcH
 
 rotation : Algorithm
 rotation = record
     { name  = "Rotation"
-    ; input = Inp.rotation
+    ; input = Input.rotation
     ; run   = rotate
     }
