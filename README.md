@@ -19,7 +19,7 @@ An example demonstrating usage of [`agda-ffi-hs`](https://github.com/KislyjKisel
 * `libsdl2`
 * Agda compatible with `agda-ffi-hs` (ffi pragmas with type arity annotation)
 * [`agda-stdlib`](https://github.com/agda/agda-stdlib) experimental
-* [`agda-ffi-hs`](https://github.com/KislyjKisel/agda-ffi-hs) (tested with `133e2d0`)
+* [`agda-ffi-hs`](https://github.com/KislyjKisel/agda-ffi-hs) (tested with `1bd3a14`)
 
 ## Running
 
