@@ -2,8 +2,9 @@
 
 module Lab.Algorithm.Neighborhood.Kernel where
 
-open import Data.Nat.Divisibility using (_∣?_)
-open import Data.Product          using (_×_; _,_)
+open import Data.Nat.Divisibility        using (_∣?_)
+open import Data.Product                 using (_×_; _,_)
+open import Data.Vec.Base         as Vec using (Vec; _∷_; [])
 import Relation.Nullary.Decidable.Core as Dec
 
 open import Ffi.Hs.Data.Ord  using (clamp)

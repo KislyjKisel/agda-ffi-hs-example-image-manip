@@ -2,7 +2,9 @@
 
 module Lab.Rendering.Program.Textured2D where
 
-open import Data.Product using (_,_)
+open import Data.Product  using (_,_)
+open import Data.Vec.Base using (Vec)
+
 import Ffi.Hs.Graphics.Rendering.OpenGL.GL.Shaders as GL
 
 open import Lab.Prelude

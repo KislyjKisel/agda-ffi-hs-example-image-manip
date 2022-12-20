@@ -2,8 +2,8 @@
 
 module Lab.Algorithm.Neighborhood.Median where
 
-open import Data.Vec.Base as Vec using ()
-open import Function.Base        using (_on_)
+open import Function.Base using (_on_)
+import Data.Vec.Base as Vec
 
 open import Ffi.Hs.Data.List using (sort; sortBy)
 

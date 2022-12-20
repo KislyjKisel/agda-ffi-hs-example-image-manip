@@ -8,7 +8,8 @@ open import Relation.Nullary.Decidable.Core as Dec using ()
 
 import Ffi.Hs.DearImGui as ImGui
 
-open import Lab.Input   using (Input)
+open import Lab.Data.Vec as Vec using (Vec)
+open import Lab.Input           using (Input)
 open import Lab.Prelude
 
 
@@ -26,8 +27,8 @@ kernel n = record
         pure $ kv , rvs
     ; ui = λ (k , rs) → do
         ImGui.dragFloat "Mult" k (f64⇒f32 0.01) (f64⇒f32 0.0) (f64⇒f32 2.0)
-        Vec.forIO- rs λ i irs →
-            Vec.forIO- irs λ j jr → do
+        Vec.iforM- rs λ i irs →
+            Vec.iforM- irs λ j jr → do
                 -- if (Int ∋ fromℕ $ Fin.toℕ j) == 0 then pure _ else ImGui.sameLine
                 ImGui.dragFloat (Text.append (Text.append (sf i) (sf j)) "\0") jr (f64⇒f32 0.25) (f64⇒f32 0.0) (f64⇒f32 4.0)
     }

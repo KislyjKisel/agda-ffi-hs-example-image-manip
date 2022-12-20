@@ -8,6 +8,7 @@ open import Relation.Nullary.Decidable.Core as Dec using ()
 open import Ffi.Hs.Data.Word     using (Word8)
 open import Ffi.Hs.Data.Foldable using (forM-)
 
+open import Lab.Data.Vec as Vec using (Vec)
 open import Lab.Prelude
 
 

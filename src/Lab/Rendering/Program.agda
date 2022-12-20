@@ -2,33 +2,17 @@
 
 module Lab.Rendering.Program where
 
-open import Data.Product using (_×_; _,_; proj₁; proj₂)
+open import Data.Product  using (_×_; _,_; proj₁; proj₂)
 
 open import Ffi.Hs.Control.Applicative using (unless)
 open import Ffi.Hs.Data.Foldable       using (forM-)
 import Ffi.Hs.Data.ByteString              as BS
 import Ffi.Hs.Graphics.Rendering.OpenGL.GL as GL
 
+open import Lab.Data.Vec.Relation.Unary.All as VAll using ()
+open import Lab.Data.Vec as Vec using (Vec)
 open import Lab.Prelude
 
-
-module VAll where
-    open import Data.Vec.Relation.Unary.All public
-
-    open Data.Product using (∃)
-
-    toVec : ∀{aℓ pℓ} {n} {A : Set aℓ} {P : A → Set pℓ} {xs : Vec A n} → All P xs → Vec (∃ P) n
-    toVec = reduce λ {x} px → x , px
-
-    toList : ∀{aℓ pℓ} {n} {A : Set aℓ} {P : A → Set pℓ} {xs : Vec A n} → All P xs → List (∃ P)
-    toList = Vec.toList ∘ toVec
-
-Vec-forM : ∀{aℓ bℓ n} {A : Set aℓ} {B : Set bℓ} {M : Set bℓ → Set bℓ} → ⦃ Monad M ⦄ → Vec A n → (A → M B) → M (Vec B n)
-Vec-forM Vec.[]       f = return $ Vec.[]
-Vec-forM (x Vec.∷ xs) f = do
-    y ← f x
-    ys ← Vec-forM xs f
-    return $ y Vec.∷ ys
 
 data ShaderDescr : Set where
     shader-file : String → GL.ShaderType → ShaderDescr
@@ -82,7 +66,7 @@ new descr = let open ProgramDescr descr in do
         progLog ← ("PROG: " ++_) <$> GL.programInfoLog program
         fail $ "Shader program link failed: " ++ progLog
 
-    uniform-locations ← Vec-forM uniforms (GL.uniformLocation program ∘ proj₂)
+    uniform-locations ← Vec.iforM uniforms (const $ GL.uniformLocation program ∘ proj₂)
     pure $ record
         { program           = program
         ; uniform-locations = uniform-locations
