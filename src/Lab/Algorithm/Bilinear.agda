@@ -56,7 +56,7 @@ scale (mkTuple2 scaleX scaleY) src = pure $
                 v4fToPixel $
                     lerp q0 q1 $ (srcX - realToFrac src0X) / (realToFrac $ src1X - src0X)
 
-            ; (mkTuple2 True Flase) →  do
+            ; (mkTuple2 True False) →  do
                 let q0 = pixelToV4f $ JP.pixelAt src src0X src0Y
                     q1 = pixelToV4f $ JP.pixelAt src src0X src1Y
 
